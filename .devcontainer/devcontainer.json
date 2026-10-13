@@ -1,0 +1,13 @@
+{
+  "name": "finance",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+  "postStartCommand": "bash -lc 'cd \"${CODESPACE_VSCODE_FOLDER:-/workspaces/finance}\" && mkdir -p .data && nohup bash scripts/serve.sh >> .data/poststart.log 2>&1 &'",
+  "postAttachCommand": "bash -lc 'cd \"${CODESPACE_VSCODE_FOLDER:-/workspaces/finance}\" && mkdir -p .data && nohup bash scripts/serve.sh >> .data/poststart.log 2>&1 &'",
+  "forwardPorts": [3111],
+  "portsAttributes": {
+    "3111": {
+      "label": "finance (production)",
+      "onAutoForward": "notify"
+    }
+  }
+}
