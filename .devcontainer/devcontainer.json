@@ -7,7 +7,8 @@
   "portsAttributes": {
     "3111": {
       "label": "finance (production)",
-      "onAutoForward": "notify"
+      "onAutoForward": "notify",
+      "visibility": "public"
     }
   }
 }
