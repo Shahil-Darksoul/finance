@@ -23,11 +23,12 @@ export type ProviderHealth = {
 };
 
 /** Provider selections offered in Settings. `auto` picks a live feed when a key exists. */
-export const MARKET_PROVIDER_CHOICES = ["auto", "finnhub", "alphavantage", "mock"] as const;
+export const MARKET_PROVIDER_CHOICES = ["auto", "yahoo", "finnhub", "alphavantage", "mock"] as const;
 export type MarketProviderChoice = (typeof MARKET_PROVIDER_CHOICES)[number];
 
 export const MARKET_PROVIDER_LABELS: Record<MarketProviderChoice, string> = {
   auto: "Auto (live when a key is set)",
+  yahoo: "Yahoo Finance (no key needed)",
   finnhub: "Finnhub",
   alphavantage: "Alpha Vantage",
   mock: "Simulator (no live prices)",

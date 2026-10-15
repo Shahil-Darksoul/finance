@@ -154,6 +154,20 @@ export function finnhubCryptoPair(symbol: ParsedSymbol): string | null {
   return null;
 }
 
+/** Yahoo Finance ticker for a parsed symbol, or null if we cannot map it. */
+export function yahooSymbol(symbol: ParsedSymbol): string | null {
+  if (symbol.kind === "equity") return symbol.symbol;
+
+  const base = symbol.base;
+  if (!base) return null;
+
+  // Yahoo indexes crypto as BASE-QUOTE (e.g. `BTC-USD`). It has no stablecoin
+  // tickers, so a USDT/USDC pair is priced against USD instead.
+  const quote = symbol.quote.toUpperCase();
+  const versus = quote === "USDT" || quote === "USDC" ? "USD" : quote;
+  return `${base}-${versus}`;
+}
+
 /** Alpha Vantage base currency for a parsed symbol, or null if unmappable. */
 export function alphaVantageCryptoCurrency(symbol: ParsedSymbol): string | null {
   if (symbol.kind !== "crypto") return null;

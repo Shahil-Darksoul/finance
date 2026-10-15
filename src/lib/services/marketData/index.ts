@@ -86,6 +86,13 @@ async function buildProvider(
   requested: string,
   apiKey: string | undefined,
 ): Promise<MarketDataProvider> {
+  // Yahoo is keyless, so it must be resolved before the "no key → simulator"
+  // rule below; selecting it is all the configuration it needs.
+  if (requested === "yahoo") {
+    const { createYahooProvider } = await import("./providers/yahoo");
+    return createYahooProvider();
+  }
+
   if (requested === "mock" || !apiKey) {
     const { mockProvider } = await import("./providers/mock");
     return mockProvider;
@@ -346,9 +353,11 @@ export async function describeProviders(
   const { apiKey } = resolveCredentials(credentials);
   const { describeAlphaVantage } = await import("./providers/alphavantage");
   const { describeFinnhub } = await import("./providers/finnhub");
+  const { describeYahoo } = await import("./providers/yahoo");
   const { describeMockProvider } = await import("./providers/mock");
 
   const health: ProviderHealth[] = [
+    describeYahoo(),
     describeFinnhub(apiKey),
     describeAlphaVantage(apiKey),
     describeMockProvider(),
@@ -368,6 +377,11 @@ export function activeProvider(credentials?: MarketCredentials): {
   simulated: boolean;
 } {
   const { apiKey, requested } = resolveCredentials(credentials);
+  // Yahoo is a live feed that needs no key, so it is not "simulated" the way an
+  // unconfigured key-based provider is.
+  if (requested === "yahoo") {
+    return { name: "yahoo", label: "Yahoo Finance", simulated: false };
+  }
   const simulated = requested === "mock" || !apiKey;
   return {
     name: simulated ? "simulated" : requested === "alphavantage" ? "alphavantage" : "finnhub",

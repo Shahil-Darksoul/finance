@@ -84,7 +84,7 @@ export function MarketDataSettings({ initial }: { initial: MarketSettingsView })
         <Field
           label="Provider"
           htmlFor="market-provider"
-          hint="Finnhub is the default. Alpha Vantage works too; the simulator never fetches real prices."
+          hint="Yahoo Finance needs no key and covers US and Canadian (TSX) stocks. Finnhub and Alpha Vantage use the key below; the simulator never fetches real prices."
         >
           <Select
             id="market-provider"
@@ -108,7 +108,7 @@ export function MarketDataSettings({ initial }: { initial: MarketSettingsView })
               ? `A key is ${view.fromEnv ? "set in .env" : "saved"}${
                   view.keyHint ? ` (${view.keyHint})` : ""
                 }. Leave this blank to keep it.`
-              : "Paste a Finnhub or Alpha Vantage key. Stored on the server, never shown again."
+              : "Paste a Finnhub or Alpha Vantage key (not needed for Yahoo Finance). Stored on the server, never shown again."
           }
         >
           <Input
@@ -157,7 +157,8 @@ export function MarketDataSettings({ initial }: { initial: MarketSettingsView })
           ))}
         </ul>
         <p className="text-xs text-muted-foreground">
-          Get a free key at{" "}
+          Yahoo Finance works with no key and covers Canadian listings. For
+          Finnhub or Alpha Vantage, get a free key at{" "}
           <a
             href="https://finnhub.io"
             target="_blank"
