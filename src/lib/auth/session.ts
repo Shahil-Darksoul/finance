@@ -93,11 +93,27 @@ export async function purgeExpiredSessions(): Promise<void> {
   ]);
 }
 
+/**
+ * Whether the session cookie must be sent over HTTPS only.
+ *
+ * Defaults to secure in production (correct for any HTTPS deployment). Plain
+ * HTTP access — e.g. `next start` on a LAN address like http://192.168.1.5:3111
+ * — must set `SESSION_COOKIE_SECURE=false`, otherwise browsers drop the cookie
+ * (they only allow `Secure` cookies over HTTPS, with localhost as the one
+ * exception) and every sign-in silently fails.
+ */
+function secureCookiesEnabled(): boolean {
+  const configured = process.env.SESSION_COOKIE_SECURE?.trim().toLowerCase();
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 export function sessionCookieOptions(expires: Date) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookiesEnabled(),
     path: "/",
     expires,
   };

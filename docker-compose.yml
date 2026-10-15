@@ -1,0 +1,17 @@
+services:
+  finance:
+    build: .
+    image: finance:local
+    container_name: finance
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3111"
+      DATA_DIR: /app/.data
+      # LAN access is plain HTTP, so the login cookie must not be Secure-only.
+      SESSION_COOKIE_SECURE: "false"
+    ports:
+      - "0.0.0.0:3111:3111"
+    volumes:
+      - ./.data:/app/.data
