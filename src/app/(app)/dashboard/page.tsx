@@ -3,10 +3,12 @@ import {
   ArrowRight,
   ArrowUpRight,
   CalendarClock,
+  CalendarDays,
   Landmark,
   PiggyBank,
   Receipt,
   Sparkles,
+  Target,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -30,12 +32,24 @@ import {
 import { getPaycheckProjection } from "@/lib/services/finance/paycheck";
 import { getFinancialHealth, buildInsights } from "@/lib/services/finance/insights";
 import { getAnalytics } from "@/lib/services/finance/analytics";
+import { getPortfolioSummary } from "@/lib/services/finance/portfolio";
+import { getGoalProgress, summariseGoals } from "@/lib/services/finance/goals";
+import { getUpcomingObligations } from "@/lib/services/finance/obligations";
+import { listTransactions } from "@/lib/repo/transactions";
+import {
+  convertCents,
+  displayMoney,
+  rateLabel,
+  resolveDisplay,
+} from "@/lib/services/finance/currency";
 import { listNotifications } from "@/lib/repo/notifications";
 import { generateNotifications } from "@/lib/services/finance/notifications";
 import { listAccounts } from "@/lib/repo/accounts";
-import { formatMoney, formatPercent } from "@/lib/utils/money";
+import { formatPercent } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { addDays } from "date-fns";
 import { startOfToday } from "@/lib/utils/date";
+import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -61,43 +75,57 @@ export default async function DashboardPage() {
     console.error("[dashboard] notification generation failed", generated.reason);
   }
 
-  const [summary, paycheck, health, analytics, notifications, accounts] =
+  const [summary, paycheck, analytics, notifications, accounts, display, portfolio, recentTransactions, goalProgress, obligations] =
     await Promise.all([
       getFinancialSummary(user.id),
       getPaycheckProjection(user.id),
-      getFinancialHealth(user.id, user.currency),
       getAnalytics(user.id, "6m"),
       listNotifications(user.id, 6),
       listAccounts(user.id),
+      resolveDisplay(user.currency, user.id),
+      getPortfolioSummary(user.id),
+      listTransactions(user.id, { limit: 4 }),
+      getGoalProgress(user.id),
+      getUpcomingObligations(user.id, { until: addDays(startOfToday(), 30) }),
     ]);
 
-  const insights = await buildInsights(user.id, user.currency);
-  const currency = user.currency;
-  const money = (cents: number) => formatMoney(cents, { currency });
+  // Health and insights format their own figures, so they run after the display
+  // context is known and can show converted (e.g. INR) amounts.
+  const money = displayMoney(display);
+  const [health, insights] = await Promise.all([
+    getFinancialHealth(user.id, user.currency, money),
+    buildInsights(user.id, user.currency, money),
+  ]);
+  const currency = display.currency;
   const progress = monthProgress(today);
 
   const hasAnyAccount = accounts.length > 0;
+  const goalTotals = summariseGoals(goalProgress);
+  const obligationsTotalCents = obligations.reduce(
+    (sum, item) => sum + item.amountCents,
+    0,
+  );
 
   /* ------------------------------------------------------- chart data */
 
   const netWorthPoints = analytics.netWorthSeries
     .map((point) => ({
       label: point.date,
-      netWorthCents: point.netWorthCents,
+      netWorthCents: convertCents(point.netWorthCents, display),
     }))
     .slice(-12);
 
   const flowPoints = analytics.monthlySeries.map((point) => ({
     label: shortMonth(point.month),
-    incomeCents: point.incomeCents,
-    expenseCents: point.expenseCents,
+    incomeCents: convertCents(point.incomeCents, display),
+    expenseCents: convertCents(point.expenseCents, display),
   }));
 
   const categorySlices = analytics.expenseByCategory
     .slice(0, 8)
     .map((row) => ({
       name: row.categoryName,
-      amountCents: row.amountCents,
+      amountCents: convertCents(row.amountCents, display),
       ratio: row.ratio,
       color: row.color,
     }));
@@ -130,10 +158,19 @@ export default async function DashboardPage() {
             {summary.monthlyIncomeCents > 0
               ? `${formatPercent(progress, { digits: 0 })} through the month`
               : "Add a paycheck to get started"}
+            {display.converted && rateLabel(display) ? (
+              <>
+                {" · "}
+                <span className="text-muted-foreground/70">
+                  converted at {rateLabel(display)}
+                  {display.live ? "" : " (approx.)"}
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href="/transactions/new">
               <Receipt className="h-3.5 w-3.5" aria-hidden />
@@ -224,6 +261,154 @@ export default async function DashboardPage() {
             }
             icon={<TrendingUp className="h-4 w-4" />}
           />
+        </div>
+      </section>
+
+      {/* ------------------------------------ everything, linked by page */}
+      <section aria-label="Everything in one place" className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight">Everything in one place</h2>
+            <p className="text-[11px] text-muted-foreground">
+              Jump into any part of Ledgerly with its latest numbers.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <SummaryCard
+            href="/investments"
+            icon={<TrendingUp className="h-4 w-4" />}
+            title="Investments"
+            value={money(portfolio.totalValueCents)}
+            caption={
+              portfolio.holdingsCount > 0
+                ? `${portfolio.holdingsCount} holding${portfolio.holdingsCount === 1 ? "" : "s"} · ${formatPercent(portfolio.totalGainRatio, { signed: true })} all time`
+                : "No holdings yet"
+            }
+            tone={portfolio.totalGainCents >= 0 ? "positive" : "negative"}
+            badge={
+              portfolio.holdingsCount > 0
+                ? {
+                    text: money(portfolio.totalGainCents, { signed: true }),
+                    tone: portfolio.totalGainCents >= 0 ? "positive" : "negative",
+                  }
+                : undefined
+            }
+          />
+
+          <SummaryCard
+            href="/bills"
+            icon={<CalendarClock className="h-4 w-4" />}
+            title="Bills & EMIs"
+            value={money(obligationsTotalCents)}
+            caption={
+              obligations.length > 0
+                ? `${obligations.length} payment${obligations.length === 1 ? "" : "s"} due in the next 30 days`
+                : "Nothing scheduled in 30 days"
+            }
+          />
+
+          <SummaryCard
+            href="/goals"
+            icon={<Target className="h-4 w-4" />}
+            title="Savings goals"
+            value={money(goalTotals.currentCents)}
+            caption={
+              goalTotals.goalCount > 0
+                ? `${formatPercent(goalTotals.overallRatio, { digits: 0 })} of ${money(goalTotals.targetCents)} across ${goalTotals.goalCount} goal${goalTotals.goalCount === 1 ? "" : "s"}`
+                : "No goals yet"
+            }
+            progress={goalTotals.goalCount > 0 ? goalTotals.overallRatio : undefined}
+          />
+        </div>
+
+        <Card>
+          <CardHeader
+            title="Recent activity"
+            description="Your latest transactions across every account."
+            icon={<Receipt className="h-4 w-4" />}
+            action={
+              <Link
+                href="/transactions"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+              >
+                All transactions
+                <ArrowUpRight className="h-3 w-3" aria-hidden />
+              </Link>
+            }
+          />
+          <CardBody>
+            {recentTransactions.length === 0 ? (
+              <EmptyState
+                icon={<Receipt className="h-6 w-6" />}
+                title="No transactions yet"
+                description="Add your first transaction and it will show up here instantly."
+                action={
+                  <Link href="/transactions/new" className={buttonClass({ size: "sm" })}>
+                    Add transaction
+                  </Link>
+                }
+              />
+            ) : (
+              <ul className="divide-y divide-border rounded-xl border border-border">
+                {recentTransactions.map((tx) => {
+                  const negative = tx.cashImpactCents < 0;
+                  return (
+                    <li key={tx.id} className="flex items-center gap-3 px-3 py-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted-foreground">
+                        {negative ? (
+                          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                        ) : (
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">
+                          {tx.description || tx.merchant || "Transaction"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {prettyDate(tx.date)}
+                          {tx.categoryName ? ` · ${tx.categoryName}` : ""}
+                          {tx.accountName ? ` · ${tx.accountName}` : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "shrink-0 text-xs font-medium tabular-nums",
+                          tx.type === "transfer"
+                            ? "text-muted-foreground"
+                            : tx.cashImpactCents >= 0
+                              ? "text-positive"
+                              : "text-negative",
+                        )}
+                      >
+                        {tx.type === "transfer"
+                          ? money(tx.amountCents)
+                          : money(tx.cashImpactCents, { signed: true })}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+
+        <div className="flex flex-wrap gap-2">
+          {EXPLORE_LINKS.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface-2 hover:text-foreground"
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -539,6 +724,18 @@ const INSIGHT_BASIS = {
   forecast: "Forecast",
 } as const;
 
+/** Compact chips that link to every other part of the app. */
+const EXPLORE_LINKS = [
+  { href: "/analytics", label: "Analytics", icon: Sparkles },
+  { href: "/accounts", label: "Accounts", icon: Landmark },
+  { href: "/investments", label: "Investments", icon: TrendingUp },
+  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/bills", label: "Bills & EMIs", icon: CalendarClock },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/forecast", label: "Forecast", icon: TrendingUp },
+  { href: "/categories", label: "Categories", icon: Wallet },
+] as const;
+
 function statusTone(
   status: "good" | "fair" | "poor" | "unknown",
 ): "positive" | "warning" | "negative" | "info" {
@@ -574,6 +771,68 @@ function MiniStat({
   );
 }
 
+/** Compact linked card used by the "Everything in one place" section. */
+function SummaryCard({
+  href,
+  icon,
+  title,
+  value,
+  caption,
+  tone = "neutral",
+  badge,
+  progress,
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  value: string;
+  caption: string;
+  tone?: "neutral" | "positive" | "negative";
+  badge?: { text: string; tone: "positive" | "negative" };
+  progress?: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className="card card-hover group flex flex-col gap-2 px-4 py-3.5 focus-visible:outline-2 focus-visible:outline-primary"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-[11px] font-medium tracking-wide text-muted-foreground">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary-soft text-primary">
+            {icon}
+          </span>
+          {title}
+        </span>
+        <ArrowUpRight
+          className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-primary"
+          aria-hidden
+        />
+      </div>
+
+      <p
+        className={cn(
+          "text-xl font-semibold tracking-tight tabular-nums",
+          tone === "positive" && "text-positive",
+          tone === "negative" && "text-negative",
+        )}
+      >
+        {value}
+      </p>
+
+      {badge ? (
+        <Badge tone={badge.tone}>
+          {badge.text}
+        </Badge>
+      ) : null}
+
+      {progress !== undefined ? (
+        <ProgressBar value={Math.min(1, Math.max(0, progress))} showValue={false} size="sm" />
+      ) : null}
+
+      <p className="text-[11px] leading-relaxed text-muted-foreground">{caption}</p>
+    </Link>
+  );
+}
 /** Shown instead of empty charts on a brand new account. */
 function FirstRun() {
   const steps = [

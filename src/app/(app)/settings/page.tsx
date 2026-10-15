@@ -11,6 +11,8 @@ import { DEPOSIT_ACCOUNT_TYPES } from "@/lib/types";
 import { PaydayManager } from "@/components/app/payday-manager";
 import { getMarketSettingsView } from "@/lib/services/marketData/settings";
 import { MarketDataSettings } from "@/components/app/market-data-settings";
+import { CurrencySwitcher } from "@/components/app/currency-switcher";
+import { resolveDisplay, toDisplayView } from "@/lib/services/finance/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,7 @@ export default async function SettingsPage({
     .map((account) => ({ id: account.id, name: account.name }));
 
   const marketSettings = await getMarketSettingsView(user.id);
+  const display = await resolveDisplay(user.currency, user.id);
 
   return (
     <div className="space-y-4">
@@ -54,9 +57,42 @@ export default async function SettingsPage({
           <div className="space-y-2 text-sm">
             <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{user.name}</span></div>
             <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{user.email}</span></div>
-            <div><span className="text-muted-foreground">Currency:</span> <span className="font-medium">{user.currency}</span></div>
+            <div>
+              <span className="text-muted-foreground">Currency:</span>{" "}
+              <span className="font-medium">{user.currency}</span>
+              {display.converted ? (
+                <span className="text-muted-foreground">
+                  {" "}· displayed as {display.currency}
+                </span>
+              ) : null}
+            </div>
             {user.isDemo && <div className="text-xs text-warning">Demo account</div>}
           </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Display currency"
+          description="Your records stay in your base currency. Pick another to view everything converted at live exchange rates."
+        />
+        <CardBody className="space-y-3">
+          <CurrencySwitcher display={toDisplayView(display)} />
+          <p className="text-xs text-muted-foreground">
+            Base currency <span className="font-medium text-foreground">{display.baseCurrency}</span>
+            {display.converted ? (
+              <>
+                {" "}· showing in <span className="font-medium text-foreground">{display.currency}</span>
+                {" "}· 1 {display.baseCurrency} ≈{" "}
+                {display.rate >= 100 ? display.rate.toFixed(1) : display.rate.toFixed(2)}{" "}
+                {display.currency}{" "}
+                {display.live ? "(live rate)" : "(approximate — live feed unavailable)"}
+              </>
+            ) : (
+              " · showing stored amounts"
+            )}
+            .
+          </p>
         </CardBody>
       </Card>
 

@@ -23,8 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import { ThemeToggle } from "./theme-toggle";
 import { BrandMark } from "./brand-mark";
+import { CurrencySwitcher } from "./currency-switcher";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils/cn";
+import type { DisplayView } from "@/lib/utils/currency";
 
 /**
  * Primary navigation, grouped the way people actually look for things:
@@ -71,10 +73,12 @@ const SETTINGS_ITEM = { href: "/settings", label: "Settings", icon: Settings };
 export function AppShell({
   user,
   unreadNotifications,
+  display,
   children,
 }: {
   user: { name: string; email: string; isDemo: boolean };
   unreadNotifications: number;
+  display: DisplayView;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -250,6 +254,9 @@ export function AppShell({
           {/* Theme lives in the header only: the sidebar footer has no room for
               it on a 320px viewport, and two toggles would desync. */}
           <div className="ml-auto flex items-center gap-1.5">
+            <div className="mr-0.5">
+              <CurrencySwitcher display={display} compact />
+            </div>
             <Button
               variant="ghost"
               size="icon"

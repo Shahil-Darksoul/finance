@@ -261,6 +261,78 @@ export function ForecastChart({
   );
 }
 
+/* ------------------------------------------------------ monthly savings */
+
+export type SavingsPoint = {
+  label: string;
+  savingsCents: number;
+};
+
+/**
+ * Money kept each month (income minus spending). Bars are coloured by sign so
+ * a deficit month is unmistakable without relying on the axis.
+ */
+export function MonthlySavingsChart({
+  data,
+  currency,
+}: {
+  data: SavingsPoint[];
+  currency: string;
+}) {
+  if (data.length === 0) {
+    return <ChartEmpty message="No transactions in this range" />;
+  }
+
+  const rows = data.map((row) => ({
+    ...row,
+    fill: row.savingsCents >= 0 ? "var(--positive)" : "var(--negative)",
+  }));
+
+  return (
+    <div className="h-56 w-full" role="img" aria-label="Money saved per month">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={AXIS_STYLE}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={12}
+          />
+          <YAxis
+            tick={AXIS_STYLE}
+            tickLine={false}
+            axisLine={false}
+            width={46}
+            tickFormatter={(value: number) => axisTick(value, currency)}
+          />
+          <Tooltip
+            cursor={{ fill: "var(--surface-3)" }}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const row = payload[0].payload as (typeof rows)[number];
+              return (
+                <ChartTip>
+                  <p className="mb-1 font-medium text-foreground">{label}</p>
+                  <p className={row.savingsCents >= 0 ? "text-positive" : "text-negative"}>
+                    {formatMoney(row.savingsCents, { currency, signed: true })}
+                  </p>
+                </ChartTip>
+              );
+            }}
+          />
+          <Bar dataKey="savingsCents" radius={[4, 4, 0, 0]} maxBarSize={26}>
+            {rows.map((row) => (
+              <Cell key={row.label} fill={row.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ donut */
 
 export type CategorySlice = {

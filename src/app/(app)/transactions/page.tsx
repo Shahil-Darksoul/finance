@@ -5,36 +5,50 @@ import { listCategories } from "@/lib/repo/categories";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteTransactionButton } from "@/components/app/delete-transaction-button";
+import {
+  convertCents,
+  displayMoney,
+  rateLabel,
+  resolveDisplay,
+} from "@/lib/services/finance/currency";
 import { Receipt, Plus } from "lucide-react";
 import Link from "next/link";
-import { formatMoney } from "@/lib/utils/money";
 
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
   const user = await requireUser();
-  const [transactions, accounts, categories] = await Promise.all([
+  const [transactions, accounts, categories, display] = await Promise.all([
     listTransactions(user.id, { limit: 50 }),
     listAccounts(user.id),
     listCategories(user.id),
+    resolveDisplay(user.currency, user.id),
   ]);
 
+  const money = displayMoney(display);
   const accountMap = new Map(accounts.map(a => [a.id, a]));
   const categoryMap = new Map(categories.map(c => [c.id, c]));
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Transactions</h1>
-          <p className="text-xs text-muted-foreground">Track income, expenses, and transfers</p>
+          <p className="text-xs text-muted-foreground">
+            Track income, expenses, and transfers
+            {display.converted && rateLabel(display)
+              ? ` · shown in ${display.currency} at ${rateLabel(display)}`
+              : ""}
+          </p>
         </div>
-        <Button asChild>
-          <Link href="/transactions/new">
-            <Plus className="h-4 w-4" />
-            Add transaction
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild>
+            <Link href="/transactions/new">
+              <Plus className="h-4 w-4" />
+              Add transaction
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -78,7 +92,7 @@ export default async function TransactionsPage() {
                         <td className="py-2 text-muted-foreground">{category?.name || '—'}</td>
                         <td className="py-2 text-muted-foreground">{account?.name || '—'}</td>
                         <td className={`py-2 text-right tabular-nums ${isExpense ? 'text-negative' : isIncome ? 'text-positive' : ''}`}>
-                          {formatMoney(displayCents, { currency: user.currency, signed: t.type !== 'transfer' && t.amountCents !== 0 })}
+                          {money(displayCents, { signed: t.type !== 'transfer' && t.amountCents !== 0 })}
                         </td>
                         <td className="py-2 text-right">
                           <DeleteTransactionButton
@@ -88,9 +102,9 @@ export default async function TransactionsPage() {
                               description: t.description,
                               merchant: t.merchant,
                               type: t.type,
-                              amountCents: t.amountCents,
+                              amountCents: convertCents(t.amountCents, display),
                             }}
-                            currency={user.currency}
+                            currency={display.currency}
                           />
                         </td>
                       </tr>

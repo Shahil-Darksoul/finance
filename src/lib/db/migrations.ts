@@ -446,4 +446,12 @@ export const migrations: Migration[] = [
       )`,
     ],
   },
+  {
+    id: "0009_display_currency",
+    statements: [
+      // Preferred display currency, converted from the account's base currency
+      // at live exchange rates. NULL means "show amounts in the base currency".
+      `ALTER TABLE user_settings ADD COLUMN display_currency TEXT`,
+    ],
+  },
 ];

@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/guard";
 import { countUnread } from "@/lib/repo/notifications";
 import { AppShell } from "@/components/app/app-shell";
+import { resolveDisplay, toDisplayView } from "@/lib/services/finance/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +25,15 @@ export default async function AppLayout({
     console.error("[app-shell] unread count failed", error);
   }
 
+  // Resolved once per request so the header's currency switcher is available on
+  // every page, not just the dashboard.
+  const display = toDisplayView(await resolveDisplay(user.currency, user.id));
+
   return (
     <AppShell
       user={{ name: user.name, email: user.email, isDemo: user.isDemo }}
       unreadNotifications={unread}
+      display={display}
     >
       {children}
     </AppShell>

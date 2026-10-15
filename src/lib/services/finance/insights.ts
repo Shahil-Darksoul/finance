@@ -22,9 +22,17 @@ import type { HealthMetric, Insight } from "@/lib/types";
 
 const CURRENCY_DEFAULT = "USD";
 
+/** Optional display formatter — lets callers show converted (e.g. INR) amounts. */
+export type MoneyFormatter = (cents: number) => string;
+
+function formatterFor(currency: string, format?: MoneyFormatter): MoneyFormatter {
+  return format ?? ((cents: number) => formatMoney(cents, { currency }));
+}
+
 export async function buildInsights(
   userId: string,
   currency = CURRENCY_DEFAULT,
+  format?: MoneyFormatter,
 ): Promise<Insight[]> {
   const [analytics, totals, goals, portfolio, obligations] = await Promise.all([
     getAnalytics(userId, "6m"),
@@ -35,7 +43,7 @@ export async function buildInsights(
   ]);
 
   const insights: Insight[] = [];
-  const money = (cents: number) => formatMoney(cents, { currency });
+  const money = formatterFor(currency, format);
 
   /* ---------------------------------------------- 1. savings trend */
   const savingsTrend = analytics.growth.savingsRatio;
@@ -230,6 +238,7 @@ export type FinancialHealth = {
 export async function getFinancialHealth(
   userId: string,
   currency = CURRENCY_DEFAULT,
+  format?: MoneyFormatter,
 ): Promise<FinancialHealth> {
   const [analytics, totals, obligations, portfolio, summary] = await Promise.all([
     getAnalytics(userId, "6m"),
@@ -239,7 +248,7 @@ export async function getFinancialHealth(
     getFinancialSummary(userId),
   ]);
 
-  const money = (cents: number) => formatMoney(cents, { currency });
+  const money = formatterFor(currency, format);
   const avgIncome = analytics.averages.monthlyIncomeCents;
   const avgExpense = analytics.averages.monthlyExpenseCents;
   const monthlyObligations = obligations.reduce((sum, item) => sum + item.amountCents, 0);
