@@ -218,10 +218,14 @@ async function createPostgresDriver(): Promise<DbDriver> {
   const pool = new pg.Pool({
     connectionString: databaseUrl(),
     max: 10,
-    // Keep money as JS numbers of cents (well under 2^53).
-    options: "-c statement_timeout=20000",
+    // Do NOT pass `options`/`statement_timeout` here. Node sends it as the
+    // `options` startup packet, and Neon's pooled endpoint (PgBouncer in
+    // transaction mode) rejects that with "unsupported startup parameter in
+    // options", failing every connection. Use a direct (non-pooled) URL if a
+    // server-side statement timeout is ever required.
   });
 
+  // Keep money as JS numbers of cents (well under 2^53).
   const normalize = (params: SqlParam[]) =>
     params.map((value) => {
       if (value === undefined) return null;
