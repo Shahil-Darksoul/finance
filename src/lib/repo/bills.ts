@@ -161,6 +161,26 @@ export async function deleteBill(userId: string, id: string): Promise<boolean> {
   return result.changes > 0;
 }
 
+/**
+ * Outstanding principal across active EMI (loan) bills — money still owed.
+ *
+ * Loans recorded as liability accounts are already deducted from net worth via
+ * their negative balances; this covers loans tracked only as an EMI schedule,
+ * which would otherwise be invisible to net worth.
+ */
+export async function getOutstandingLoanPrincipalCents(
+  userId: string,
+): Promise<number> {
+  const db = await getDb();
+  const row = await db.get<{ total: number }>(
+    `SELECT COALESCE(SUM(current_principal_cents), 0) AS total
+       FROM bills
+      WHERE user_id = ? AND kind = 'emi' AND active = 1`,
+    [userId],
+  );
+  return Number(row?.total ?? 0);
+}
+
 /* ------------------------------------------------------- EMI schedules */
 
 export async function listEmiPayments(

@@ -1,5 +1,6 @@
 import { addDays, startOfMonth, subMonths } from "date-fns";
 import { getAccountTotals, listAccounts } from "@/lib/repo/accounts";
+import { getOutstandingLoanPrincipalCents } from "@/lib/repo/bills";
 import { getMonthlyTotals } from "@/lib/repo/transactions";
 import { getPortfolioSummary } from "./portfolio";
 import { safeDivide } from "@/lib/utils/money";
@@ -25,12 +26,13 @@ export async function getFinancialSummary(userId: string): Promise<FinancialSumm
   const previousMonth = monthKey(subMonths(today, 1));
   const rangeStart = `${monthRangeKeys(13, today)[0]}-01`;
 
-  const [totals, monthly, investmentsCents] = await Promise.all([
+  const [totals, monthly, investmentsCents, loanPrincipalCents] = await Promise.all([
     getAccountTotals(userId),
     getMonthlyTotals(userId, rangeStart, toISODate(today)),
     getPortfolioSummary(userId)
       .then((summary) => summary.totalValueCents)
       .catch(() => 0),
+    getOutstandingLoanPrincipalCents(userId),
   ]);
 
   const current = monthly.get(thisMonth);
@@ -51,13 +53,18 @@ export async function getFinancialSummary(userId: string): Promise<FinancialSumm
   // The ledger total is *not* reused directly: it values brokerage at its cash
   // balance and ignores the securities sitting in it, which understates net
   // worth by the gap between cost and market value.
-  const netWorthCents = totals.netWorthCents + investmentsCents;
+  //
+  // Money owed spans two records: liability accounts (their balances are already
+  // negative in `totals.netWorthCents`) and EMI bills, whose outstanding
+  // principal is not an account balance and so must be subtracted here.
+  const netWorthCents =
+    totals.netWorthCents + investmentsCents - loanPrincipalCents;
 
   return {
     netWorthCents,
     cashCents: totals.cashCents,
     savingsCents: totals.savingsCents,
-    debtCents: totals.debtCents,
+    debtCents: totals.debtCents + loanPrincipalCents,
     investmentsCents,
     receivablesCents: totals.receivablesCents,
     monthlyIncomeCents,

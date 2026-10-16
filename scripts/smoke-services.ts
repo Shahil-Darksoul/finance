@@ -54,7 +54,7 @@ async function main() {
   }
 
   const brokerageCents = accounts
-    .filter((account) => account.type === "brokerage" || account.type === "loan")
+    .filter((account) => account.type === "brokerage")
     .reduce((sum, account) => sum + account.currentBalanceCents, 0);
 
   const transactions = await listTransactions(user.id, { limit: 5000 });
@@ -80,7 +80,8 @@ async function main() {
   // finite number that can be rendered.
   check("savings rate is finite", Number.isFinite(summary.savingsRate), String(summary.savingsRate));
   // Includes brokerage cash: that is real money held at the custodian, and it
-  // is distinct from the market value of the securities sitting in it.
+  // is distinct from the market value of the securities sitting in it. `debt`
+  // now also covers outstanding EMI loan principal, not just liability accounts.
   check(
     "net worth = cash + savings + brokerage + investments - debt + receivables",
     Math.abs(
@@ -114,6 +115,14 @@ async function main() {
   check("hasData is true", analytics.hasData);
   check("categories were bucketed", analytics.expenseByCategory.length > 3);
   check("net worth series has history", analytics.netWorthSeries.length >= 12);
+  // The chart series now folds in investment market value and outstanding loan
+  // principal, so its latest point must agree with the dashboard headline.
+  const chartNetWorthCents = analytics.netWorthSeries.at(-1)?.netWorthCents ?? 0;
+  check(
+    "net worth chart ends at the dashboard net worth",
+    Math.abs(chartNetWorthCents - summary.netWorthCents) <= 2,
+    `chart ${money(chartNetWorthCents)} vs summary ${money(summary.netWorthCents)}`,
+  );
   const categoryShares = analytics.expenseByCategory.reduce((sum, row) => sum + row.ratio, 0);
   check("category shares sum to ~100%", Math.abs(categoryShares - 1) < 0.02, pct(categoryShares));
 

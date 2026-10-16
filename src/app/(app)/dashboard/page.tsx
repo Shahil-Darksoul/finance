@@ -213,6 +213,8 @@ export default async function DashboardPage() {
               summary.receivablesCents > 0
                 ? ` · ${money(summary.receivablesCents)} owed to you`
                 : ""
+            }${
+              summary.debtCents > 0 ? ` · ${money(summary.debtCents)} you owe` : ""
             }`}
             icon={<Landmark className="h-4 w-4" />}
           />

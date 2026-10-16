@@ -565,6 +565,10 @@ export type FinancialSummary = {
   netWorthCents: number;
   cashCents: number;
   savingsCents: number;
+  /**
+   * Money owed: negative balances on liability accounts plus outstanding
+   * principal on EMI (loan) bills that have no liability account.
+   */
   debtCents: number;
   investmentsCents: number;
   /** Outstanding money lent to others; still counts towards net worth. */

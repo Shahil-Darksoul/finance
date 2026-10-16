@@ -8,7 +8,9 @@ import {
   type MonthlyTotals,
 } from "@/lib/repo/transactions";
 import { getAccountTotals } from "@/lib/repo/accounts";
+import { getOutstandingLoanPrincipalCents } from "@/lib/repo/bills";
 import { getImpliedAnnualReturn } from "@/lib/repo/investments";
+import { getPortfolioSummary } from "./portfolio";
 import { safeDivide } from "@/lib/utils/money";
 import { fromISODate, fromISOMonth, startOfToday, toISODate } from "@/lib/utils/date";
 import type { CategoryBreakdown, MonthlySeriesPoint } from "@/lib/types";
@@ -136,16 +138,39 @@ export async function getAnalytics(
   const range = resolveRange(rangeValue, custom);
   const firstTransactionDate = await getFirstTransactionDate(userId);
 
-  const [monthly, rangeTotals, expenseByCategory, incomeByCategory, netWorthSeries, totals, investmentReturnRatio] =
-    await Promise.all([
-      getMonthlyTotals(userId, range.from, range.to),
-      getRangeTotals(userId, range.from, range.to),
-      getCategoryBreakdown(userId, range.from, range.to, "expense", 12),
-      getCategoryBreakdown(userId, range.from, range.to, "income", 8),
-      getNetWorthSeries(userId, range.from, range.to),
-      getAccountTotals(userId),
-      getImpliedAnnualReturn(userId),
-    ]);
+  const [
+    monthly,
+    rangeTotals,
+    expenseByCategory,
+    incomeByCategory,
+    ledgerNetWorthSeries,
+    totals,
+    investmentReturnRatio,
+    portfolio,
+    loanPrincipalCents,
+  ] = await Promise.all([
+    getMonthlyTotals(userId, range.from, range.to),
+    getRangeTotals(userId, range.from, range.to),
+    getCategoryBreakdown(userId, range.from, range.to, "expense", 12),
+    getCategoryBreakdown(userId, range.from, range.to, "income", 8),
+    getNetWorthSeries(userId, range.from, range.to),
+    getAccountTotals(userId),
+    getImpliedAnnualReturn(userId),
+    getPortfolioSummary(userId).catch(() => null),
+    getOutstandingLoanPrincipalCents(userId),
+  ]);
+
+  // The ledger series only tracks account balances. Bring it in line with the
+  // dashboard's net worth — which adds the market value of investments and
+  // deducts outstanding EMI loan principal — so the chart ends on the same
+  // figure shown on the dashboard. Historical market values aren't stored, so
+  // today's value is applied across the window.
+  const investmentsCents = portfolio?.totalValueCents ?? 0;
+  const netWorthAdjustmentCents = investmentsCents - loanPrincipalCents;
+  const netWorthSeries = ledgerNetWorthSeries.map((point) => ({
+    ...point,
+    netWorthCents: point.netWorthCents + netWorthAdjustmentCents,
+  }));
 
   // Build a continuous month axis so gaps render as real zeroes, not nulls.
   const months = monthKeysBetween(range.from, range.to);
@@ -217,7 +242,7 @@ export async function getAnalytics(
     expenseByCategory,
     incomeByCategory,
     netWorthSeries,
-    currentNetWorthCents: totals.netWorthCents,
+    currentNetWorthCents: totals.netWorthCents + netWorthAdjustmentCents,
     investmentReturnRatio: investmentReturnRatio,
     monthlyTotals: monthly,
   };
