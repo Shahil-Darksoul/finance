@@ -200,3 +200,23 @@ export function rateLabel(ctx: DisplayContext): string | null {
   const precision = ctx.rate >= 100 ? 1 : ctx.rate >= 10 ? 2 : 4;
   return `1 ${ctx.baseCurrency} ≈ ${ctx.rate.toFixed(precision)} ${ctx.currency}`;
 }
+
+/** Converts cents from an arbitrary currency into display-currency cents. */
+export async function convertCurrencyToDisplay(
+  cents: number,
+  fromCurrency: string,
+  ctx: DisplayContext,
+): Promise<number> {
+  if (fromCurrency === ctx.baseCurrency && !ctx.converted) return cents;
+  if (fromCurrency === ctx.currency) return cents;
+  if (fromCurrency === ctx.baseCurrency) return convertCents(cents, ctx);
+  const table = await fetchRates(fromCurrency);
+  const rateToDisplay = table.rates[ctx.currency] ?? (ctx.currency === "USD" ? 1 : undefined);
+  if (rateToDisplay === undefined) {
+    // try via base
+    if (ctx.baseCurrency === "USD") return Math.round(cents * (FALLBACK_PER_USD[ctx.currency as DisplayCurrencyCode] ?? 1));
+    // fallback: no conversion
+    return cents;
+  }
+  return Math.round(cents * rateToDisplay);
+}

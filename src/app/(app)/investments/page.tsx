@@ -5,7 +5,7 @@ import { buttonClass } from "@/components/ui/button";
 import { TrendingUp, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
-import { resolveDisplay, displayMoney } from "@/lib/services/finance/currency";
+import { resolveDisplay, displayMoney, convertCurrencyToDisplay } from "@/lib/services/finance/currency";
 import { listAccounts } from "@/lib/repo/accounts";
 import { EditInvestmentDialog } from "@/components/app/edit-investment-dialog";
 import { DeleteInvestmentButton } from "@/components/app/delete-investment-button";
@@ -19,6 +19,21 @@ export default async function InvestmentsPage() {
   const display = await resolveDisplay(user.currency, user.id);
 
   const money = displayMoney(display);
+  const totalValueConverted = await (async () => {
+    let total = 0;
+    for (const h of holdings) {
+      total += await convertCurrencyToDisplay(h.marketValueCents, h.investment.currency, display);
+    }
+    return total;
+  })();
+  const totalInvestedConverted = await (async () => {
+    let total = 0;
+    for (const h of holdings) {
+      total += await convertCurrencyToDisplay(h.costBasisCents, h.investment.currency, display);
+    }
+    return total;
+  })();
+  const totalGainConverted = totalValueConverted - totalInvestedConverted;
 
   return (
     <div className="space-y-4">
@@ -62,13 +77,13 @@ export default async function InvestmentsPage() {
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Total value</p>
-            <p className="text-xl font-semibold tabular-nums">{money(summary.totalValueCents)}</p>
+            <p className="text-xl font-semibold tabular-nums">{money(totalValueConverted)}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Cost basis</p>
-            <p className="text-xl font-semibold tabular-nums">{money(summary.investedCents)}</p>
+            <p className="text-xl font-semibold tabular-nums">{money(totalInvestedConverted)}</p>
           </CardBody>
         </Card>
         <Card>
@@ -77,10 +92,10 @@ export default async function InvestmentsPage() {
             <p
               className={`text-xl font-semibold tabular-nums ${summary.totalGainCents >= 0 ? "text-positive" : "text-negative"}`}
             >
-              {money(summary.totalGainCents, { signed: true })}
+              {money(totalGainConverted, { signed: true })}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-              {formatPercent(summary.totalGainRatio, { signed: true })} all time
+              {formatPercent(totalValueConverted === 0 || totalInvestedConverted === 0 ? 0 : totalGainConverted / totalInvestedConverted, { signed: true })} all time
             </p>
           </CardBody>
         </Card>
