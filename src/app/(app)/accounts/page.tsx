@@ -3,6 +3,7 @@ import { listAccounts } from "@/lib/repo/accounts";
 import { Card, CardBody, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EditAccountDialog } from "@/components/app/edit-account-dialog";
+import { DeleteAccountButton } from "@/components/app/delete-account-button";
 import { Wallet, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils/money";
@@ -48,18 +49,30 @@ export default async function AccountsPage() {
                         <p className="font-medium">{a.name}</p>
                         <p className="text-xs text-muted-foreground capitalize">{a.type.replace('_', ' ')}</p>
                       </div>
-                      <EditAccountDialog
-                        account={{
-                          id: a.id,
-                          name: a.name,
-                          type: a.type,
-                          institution: a.institution,
-                          currentBalanceCents: a.currentBalanceCents,
-                          creditLimitCents: a.creditLimitCents,
-                          note: a.note,
-                          includeInNetWorth: a.includeInNetWorth,
-                        }}
-                      />
+                      <div className="flex items-center gap-0.5">
+                        <EditAccountDialog
+                          account={{
+                            id: a.id,
+                            name: a.name,
+                            type: a.type,
+                            institution: a.institution,
+                            currency: a.currency,
+                            currentBalanceCents: a.currentBalanceCents,
+                            creditLimitCents: a.creditLimitCents,
+                            note: a.note,
+                            includeInNetWorth: a.includeInNetWorth,
+                          }}
+                        />
+                        <DeleteAccountButton
+                          account={{
+                            id: a.id,
+                            name: a.name,
+                            type: a.type,
+                            currency: a.currency,
+                            currentBalanceCents: a.currentBalanceCents,
+                          }}
+                        />
+                      </div>
                     </div>
                     <p
                       className={cn(

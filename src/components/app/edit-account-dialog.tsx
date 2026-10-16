@@ -9,12 +9,17 @@ import { Field, Input, MoneyInput, Select, Switch, Textarea } from "@/components
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { useToast } from "@/components/ui/toast";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_META, type AccountType } from "@/lib/types";
+import {
+  DISPLAY_CURRENCY_CODES,
+  DISPLAY_CURRENCY_LABELS,
+} from "@/lib/utils/currency";
 
 export type EditableAccount = {
   id: string;
   name: string;
   type: AccountType;
   institution: string | null;
+  currency: string;
   currentBalanceCents: number;
   creditLimitCents: number;
   note: string | null;
@@ -39,6 +44,7 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
   const [name, setName] = React.useState(account.name);
   const [type, setType] = React.useState<AccountType>(account.type);
   const [institution, setInstitution] = React.useState(account.institution ?? "");
+  const [currency, setCurrency] = React.useState(account.currency);
   const [balanceCents, setBalanceCents] = React.useState(account.currentBalanceCents);
   const [creditLimitCents, setCreditLimitCents] = React.useState(account.creditLimitCents);
   const [includeInNetWorth, setIncludeInNetWorth] = React.useState(account.includeInNetWorth);
@@ -46,10 +52,18 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
 
   const isLiability = LIABILITY_TYPES.has(type);
 
+  // Always offer the account's current code, even if it predates the list.
+  const currencyOptions = DISPLAY_CURRENCY_CODES.includes(
+    account.currency as (typeof DISPLAY_CURRENCY_CODES)[number],
+  )
+    ? DISPLAY_CURRENCY_CODES
+    : [account.currency, ...DISPLAY_CURRENCY_CODES];
+
   function openDialog() {
     setName(account.name);
     setType(account.type);
     setInstitution(account.institution ?? "");
+    setCurrency(account.currency);
     setBalanceCents(
       LIABILITY_TYPES.has(account.type)
         ? Math.abs(account.currentBalanceCents)
@@ -75,6 +89,7 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
           name: name.trim(),
           type,
           institution: institution.trim() || null,
+          currency,
           balanceCents,
           creditLimitCents: isLiability ? creditLimitCents : 0,
           note: note.trim() || null,
@@ -155,6 +170,24 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
               {ACCOUNT_TYPES.map((value) => (
                 <option key={value} value={value}>
                   {ACCOUNT_TYPE_META[value].label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field
+            label="Currency"
+            htmlFor="edit-currency"
+            hint="The currency this account's amounts are stored in."
+          >
+            <Select
+              id="edit-currency"
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+            >
+              {currencyOptions.map((code) => (
+                <option key={code} value={code}>
+                  {DISPLAY_CURRENCY_LABELS[code as keyof typeof DISPLAY_CURRENCY_LABELS] ?? code}
                 </option>
               ))}
             </Select>

@@ -10,6 +10,10 @@ import { Field, Input, MoneyInput, Select, Switch, Textarea } from "@/components
 import { Badge } from "@/components/ui/card";
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_META } from "@/lib/types";
+import {
+  DISPLAY_CURRENCY_CODES,
+  DISPLAY_CURRENCY_LABELS,
+} from "@/lib/utils/currency";
 
 export type NewAccountFormProps = {
   currency: string;
@@ -18,18 +22,26 @@ export type NewAccountFormProps = {
 const LIABILITY_TYPES = new Set(["credit_card", "loan"]);
 
 /** Create form for an account. */
-export function NewAccountForm({ currency }: NewAccountFormProps) {
+export function NewAccountForm({ currency: defaultCurrency }: NewAccountFormProps) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [fields, setFields] = React.useState<Record<string, string>>({});
 
   const [type, setType] = React.useState<string>("checking");
+  const [currency, setCurrency] = React.useState(defaultCurrency);
   const [balanceCents, setBalanceCents] = React.useState(0);
   const [creditLimitCents, setCreditLimitCents] = React.useState(0);
   const [includeInNetWorth, setIncludeInNetWorth] = React.useState(true);
 
   const isLiability = LIABILITY_TYPES.has(type);
+
+  // Always offer the base currency, even if it predates the list.
+  const currencyOptions = DISPLAY_CURRENCY_CODES.includes(
+    defaultCurrency as (typeof DISPLAY_CURRENCY_CODES)[number],
+  )
+    ? DISPLAY_CURRENCY_CODES
+    : [defaultCurrency, ...DISPLAY_CURRENCY_CODES];
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,6 +113,24 @@ export function NewAccountForm({ currency }: NewAccountFormProps) {
               {ACCOUNT_TYPES.map((value) => (
                 <option key={value} value={value}>
                   {ACCOUNT_TYPE_META[value].label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field
+            label="Currency"
+            htmlFor="currency"
+            hint="The currency this account's amounts are stored in."
+          >
+            <Select
+              id="currency"
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+            >
+              {currencyOptions.map((code) => (
+                <option key={code} value={code}>
+                  {DISPLAY_CURRENCY_LABELS[code as keyof typeof DISPLAY_CURRENCY_LABELS] ?? code}
                 </option>
               ))}
             </Select>

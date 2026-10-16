@@ -188,13 +188,66 @@ export async function updateAccount(
 export async function deleteAccount(
   userId: string,
   accountId: string,
+  deletionNote?: string,
 ): Promise<boolean> {
   const db = await getDb();
-  const result = await db.run(
-    `DELETE FROM accounts WHERE user_id = ? AND id = ?`,
-    [userId, accountId],
-  );
-  return result.changes > 0;
+  let deleted = false;
+  await db.tx(async (tx) => {
+    const row = await tx.get<{
+      name: string;
+      type: string;
+      institution: string | null;
+      opening_balance_cents: number;
+      credit_limit_cents: number;
+      currency: string;
+      color: string | null;
+      icon: string | null;
+      note: string | null;
+      include_in_net_worth: number;
+    }>(
+      `SELECT name, type, institution, opening_balance_cents, credit_limit_cents,
+              currency, color, icon, note, include_in_net_worth
+         FROM accounts
+        WHERE user_id = ? AND id = ?`,
+      [userId, accountId],
+    );
+    if (!row) return;
+
+    // Snapshot the account before removing it so a deletion can always be
+    // explained later. Linked transactions keep their history; the foreign key
+    // just clears their account reference.
+    await tx.run(
+      `INSERT INTO account_deletions (
+          id, user_id, account_id, name, type, institution, opening_balance_cents,
+          credit_limit_cents, currency, color, icon, account_notes,
+          include_in_net_worth, deletion_note, deleted_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId(),
+        userId,
+        accountId,
+        row.name,
+        row.type,
+        row.institution,
+        row.opening_balance_cents,
+        row.credit_limit_cents,
+        row.currency,
+        row.color,
+        row.icon,
+        row.note,
+        row.include_in_net_worth,
+        (deletionNote ?? "").trim() || "Account removed",
+        new Date().toISOString(),
+      ],
+    );
+
+    const result = await tx.run(
+      `DELETE FROM accounts WHERE user_id = ? AND id = ?`,
+      [userId, accountId],
+    );
+    deleted = result.changes > 0;
+  });
+  return deleted;
 }
 
 /** Totals used by the dashboard summary and net-worth calculations. */

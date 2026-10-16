@@ -476,4 +476,32 @@ export const migrations: Migration[] = [
         ON investment_deletions(user_id, deleted_at)`,
     ],
   },
+  {
+    id: "0011_account_deletions",
+    statements: [
+      // Account deletions are audited like transactions and investments: the
+      // account's final snapshot is kept before the row is removed. Any
+      // transactions pointing at the account have their link set to NULL by the
+      // foreign key, so their history survives.
+      `CREATE TABLE IF NOT EXISTS account_deletions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL ${REF} users(id) ON DELETE CASCADE,
+        account_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        institution TEXT,
+        opening_balance_cents INTEGER NOT NULL DEFAULT 0,
+        credit_limit_cents INTEGER NOT NULL DEFAULT 0,
+        currency TEXT NOT NULL DEFAULT 'USD',
+        color TEXT,
+        icon TEXT,
+        account_notes TEXT,
+        include_in_net_worth INTEGER NOT NULL DEFAULT 1,
+        deletion_note TEXT NOT NULL,
+        deleted_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_account_deletions_user
+        ON account_deletions(user_id, deleted_at)`,
+    ],
+  },
 ];
