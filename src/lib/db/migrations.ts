@@ -454,4 +454,26 @@ export const migrations: Migration[] = [
       `ALTER TABLE user_settings ADD COLUMN display_currency TEXT`,
     ],
   },
+  {
+    id: "0010_investment_deletions",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS investment_deletions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL ${REF} users(id) ON DELETE CASCADE,
+        investment_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        name TEXT,
+        asset_type TEXT,
+        quantity REAL NOT NULL DEFAULT 0,
+        avg_cost_cents INTEGER NOT NULL DEFAULT 0,
+        currency TEXT NOT NULL DEFAULT 'USD',
+        account_id TEXT,
+        investment_notes TEXT,
+        deletion_note TEXT NOT NULL,
+        deleted_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_investment_deletions_user
+        ON investment_deletions(user_id, deleted_at)`,
+    ],
+  },
 ];

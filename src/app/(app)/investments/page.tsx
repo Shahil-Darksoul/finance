@@ -5,12 +5,16 @@ import { buttonClass } from "@/components/ui/button";
 import { TrendingUp, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
+import { listAccounts } from "@/lib/repo/accounts";
+import { EditInvestmentDialog } from "@/components/app/edit-investment-dialog";
+import { DeleteInvestmentButton } from "@/components/app/delete-investment-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvestmentsPage() {
   const user = await requireUser();
   const { holdings, summary, errors } = await getHoldings(user.id);
+  const accounts = await listAccounts(user.id);
 
   const money = (cents: number, options?: { signed?: boolean }) =>
     formatMoney(cents, { currency: summary.currency, ...options });
@@ -109,6 +113,7 @@ export default async function InvestmentsPage() {
                     <th className="py-2 text-right">Value</th>
                     <th className="py-2 text-right">Allocation</th>
                     <th className="py-2 text-right">P/L</th>
+                    <th className="py-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -143,6 +148,34 @@ export default async function InvestmentsPage() {
                           <span className="ml-1 text-xs opacity-80">
                             ({formatPercent(h.unrealizedGainRatio, { signed: true, digits: 1 })})
                           </span>
+                        </td>
+                        <td className="py-2">
+                          <div className="flex items-center justify-end gap-1">
+                            <EditInvestmentDialog
+                              investment={{
+                                id: h.investment.id,
+                                symbol: h.investment.symbol,
+                                name: h.investment.name,
+                                assetType: h.investment.assetType,
+                                quantity: h.investment.quantity,
+                                avgCostCents: h.investment.avgCostCents,
+                                currency: h.investment.currency as import("@/lib/types").InvestmentCurrency,
+                                accountId: h.investment.accountId,
+                                notes: h.investment.notes,
+                              }}
+                              accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+                            />
+                            <DeleteInvestmentButton
+                              investment={{
+                                id: h.investment.id,
+                                symbol: h.investment.symbol,
+                                name: h.investment.name,
+                                quantity: h.investment.quantity,
+                                avgCostCents: h.investment.avgCostCents,
+                                currency: h.investment.currency,
+                              }}
+                            />
+                          </div>
                         </td>
                       </tr>
                     );

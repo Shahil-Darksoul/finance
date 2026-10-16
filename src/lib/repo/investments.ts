@@ -123,13 +123,55 @@ export async function updateInvestment(
 export async function deleteInvestment(
   userId: string,
   id: string,
+  deletionNote?: string,
 ): Promise<boolean> {
   const db = await getDb();
-  const result = await db.run(`DELETE FROM investments WHERE user_id = ? AND id = ?`, [
-    userId,
-    id,
-  ]);
-  return result.changes > 0;
+  let deleted = false;
+  await db.tx(async (tx) => {
+    const row = await tx.get<{
+      symbol: string;
+      name: string | null;
+      asset_type: string;
+      quantity: number;
+      avg_cost_cents: number;
+      currency: string;
+      account_id: string | null;
+      notes: string | null;
+    }>(
+      `SELECT symbol, name, asset_type, quantity, avg_cost_cents, currency, account_id, notes
+         FROM investments
+        WHERE user_id = ? AND id = ?`,
+      [userId, id],
+    );
+    if (!row) return;
+    await tx.run(
+      `INSERT INTO investment_deletions (
+          id, user_id, investment_id, symbol, name, asset_type, quantity,
+          avg_cost_cents, currency, account_id, investment_notes, deletion_note, deleted_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId(),
+        userId,
+        id,
+        row.symbol,
+        row.name,
+        row.asset_type,
+        row.quantity,
+        row.avg_cost_cents,
+        row.currency,
+        row.account_id,
+        row.notes,
+        (deletionNote ?? "").trim() || "Investment removed",
+        new Date().toISOString(),
+      ],
+    );
+    const result = await tx.run(`DELETE FROM investments WHERE user_id = ? AND id = ?`, [
+      userId,
+      id,
+    ]);
+    deleted = result.changes > 0;
+  });
+  return deleted;
 }
 
 export async function findInvestmentBySymbol(

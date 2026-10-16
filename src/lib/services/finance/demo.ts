@@ -634,6 +634,7 @@ export async function clearDemoData(userId: string): Promise<void> {
     await tx.run(`DELETE FROM goal_contributions WHERE user_id = ?`, [userId]);
     await tx.run(`DELETE FROM savings_goals WHERE user_id = ?`, [userId]);
     await tx.run(`DELETE FROM investment_transactions WHERE user_id = ?`, [userId]);
+    await tx.run(`DELETE FROM investment_deletions WHERE user_id = ?`, [userId]);
     await tx.run(`DELETE FROM investments WHERE user_id = ?`, [userId]);
     await tx.run(`DELETE FROM recurring_transactions WHERE user_id = ?`, [userId]);
     await tx.run(`DELETE FROM emi_payments WHERE user_id = ?`, [userId]);
