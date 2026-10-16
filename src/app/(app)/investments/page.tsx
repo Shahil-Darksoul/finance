@@ -5,7 +5,7 @@ import { buttonClass } from "@/components/ui/button";
 import { TrendingUp, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
-import { resolveDisplay, displayMoney, convertCurrencyToDisplay } from "@/lib/services/finance/currency";
+import { resolveDisplay, convertCurrencyToDisplay } from "@/lib/services/finance/currency";
 import { listAccounts } from "@/lib/repo/accounts";
 import { EditInvestmentDialog } from "@/components/app/edit-investment-dialog";
 import { DeleteInvestmentButton } from "@/components/app/delete-investment-button";
@@ -18,7 +18,11 @@ export default async function InvestmentsPage() {
   const accounts = await listAccounts(user.id);
   const display = await resolveDisplay(user.currency, user.id);
 
-  const money = displayMoney(display);
+  // convertCurrencyToDisplay already yields display-currency cents, so these
+  // must be formatted directly — running them through displayMoney() again
+  // would convert a second time.
+  const convertedMoney = (cents: number, options?: { signed?: boolean }) =>
+    formatMoney(cents, { currency: display.currency, ...options });
   const totalValueConverted = await (async () => {
     let total = 0;
     for (const h of holdings) {
@@ -77,22 +81,22 @@ export default async function InvestmentsPage() {
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Total value</p>
-            <p className="text-xl font-semibold tabular-nums">{money(totalValueConverted)}</p>
+            <p className="text-xl font-semibold tabular-nums">{convertedMoney(totalValueConverted)}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Cost basis</p>
-            <p className="text-xl font-semibold tabular-nums">{money(totalInvestedConverted)}</p>
+            <p className="text-xl font-semibold tabular-nums">{convertedMoney(totalInvestedConverted)}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Unrealized P/L</p>
             <p
-              className={`text-xl font-semibold tabular-nums ${summary.totalGainCents >= 0 ? "text-positive" : "text-negative"}`}
+              className={`text-xl font-semibold tabular-nums ${totalGainConverted >= 0 ? "text-positive" : "text-negative"}`}
             >
-              {money(totalGainConverted, { signed: true })}
+              {convertedMoney(totalGainConverted, { signed: true })}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
               {formatPercent(totalValueConverted === 0 || totalInvestedConverted === 0 ? 0 : totalGainConverted / totalInvestedConverted, { signed: true })} all time
@@ -204,7 +208,8 @@ export default async function InvestmentsPage() {
           {summary.otherCurrencyTotals.length > 0 ? (
             <div className="mt-3 space-y-1 border-t border-border/50 pt-3">
               <p className="text-xs text-muted-foreground">
-                Totals above are in {summary.currency}. Other currencies, not converted:
+                Totals above are in {display.currency} and already include other currencies,
+                converted at current rates. Native breakdown:
               </p>
               {summary.otherCurrencyTotals.map((total) => (
                 <p key={total.currency} className="text-xs text-muted-foreground tabular-nums">
