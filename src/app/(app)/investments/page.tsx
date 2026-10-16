@@ -5,6 +5,7 @@ import { buttonClass } from "@/components/ui/button";
 import { TrendingUp, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
+import { resolveDisplay, displayMoney } from "@/lib/services/finance/currency";
 import { listAccounts } from "@/lib/repo/accounts";
 import { EditInvestmentDialog } from "@/components/app/edit-investment-dialog";
 import { DeleteInvestmentButton } from "@/components/app/delete-investment-button";
@@ -15,9 +16,9 @@ export default async function InvestmentsPage() {
   const user = await requireUser();
   const { holdings, summary, errors } = await getHoldings(user.id);
   const accounts = await listAccounts(user.id);
+  const display = await resolveDisplay(user.currency, user.id);
 
-  const money = (cents: number, options?: { signed?: boolean }) =>
-    formatMoney(cents, { currency: summary.currency, ...options });
+  const money = displayMoney(display);
 
   return (
     <div className="space-y-4">
