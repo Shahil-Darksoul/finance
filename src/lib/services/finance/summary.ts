@@ -51,13 +51,7 @@ export async function getFinancialSummary(userId: string): Promise<FinancialSumm
   // The ledger total is *not* reused directly: it values brokerage at its cash
   // balance and ignores the securities sitting in it, which understates net
   // worth by the gap between cost and market value.
-  const netWorthCents =
-    totals.cashCents +
-    totals.savingsCents +
-    totals.brokerageCents +
-    investmentsCents -
-    totals.debtCents +
-    totals.receivablesCents;
+  const netWorthCents = totals.netWorthCents + investmentsCents;
 
   return {
     netWorthCents,
