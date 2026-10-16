@@ -254,11 +254,10 @@ export async function getAccountTotals(
                           THEN balance ELSE 0 END), 0) AS cash_cents,
        COALESCE(SUM(CASE WHEN type IN (${SAVINGS_TYPES.map(() => "?").join(",")})
                           THEN balance ELSE 0 END), 0) AS savings_cents,
-       COALESCE(SUM(CASE WHEN type IN ('brokerage','investment','loan')
+       COALESCE(SUM(CASE WHEN type IN ('brokerage','investment')
                           THEN balance ELSE 0 END), 0) AS brokerage_cents,
-       -- Brokerage/loan balances are excluded here because brokerage_cents
-       -- already carries their sign; counting both would double-count a loan.
-       COALESCE(SUM(CASE WHEN balance < 0 AND type NOT IN ('brokerage','investment','loan')
+       -- Debt includes credit cards and loans (liabilities).
+       COALESCE(SUM(CASE WHEN balance < 0 AND type NOT IN ('brokerage','investment')
                           THEN -balance ELSE 0 END), 0) AS debt_cents,
        COALESCE(SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END), 0) AS positive_assets_cents,
        COALESCE(SUM(balance), 0) AS total_assets_cents
