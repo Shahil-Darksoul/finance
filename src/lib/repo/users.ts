@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { newId } from "@/lib/utils/id";
 import { DEFAULT_CATEGORIES, type User } from "@/lib/types";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { type UserRow, toUser } from "@/lib/repo/mappers";
 
 function normalizeEmail(email: string): string {
@@ -30,7 +31,7 @@ export async function createUser(input: {
         email,
         input.passwordHash,
         input.name.trim() || email.split("@")[0],
-        input.currency ?? "USD",
+        input.currency ?? DEFAULT_CURRENCY,
         input.isDemo ? 1 : 0,
         now,
         now,

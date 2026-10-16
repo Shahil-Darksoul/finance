@@ -7,6 +7,9 @@
  * `@/lib/services/finance/currency`.
  */
 
+/** Base currency assigned to new accounts when none is supplied. */
+export const DEFAULT_CURRENCY = "CAD";
+
 export const DISPLAY_CURRENCY_CODES = ["USD", "CAD", "INR", "EUR", "GBP", "AUD"] as const;
 export type DisplayCurrencyCode = (typeof DISPLAY_CURRENCY_CODES)[number];
 

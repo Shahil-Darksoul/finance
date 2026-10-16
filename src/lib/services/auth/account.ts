@@ -14,6 +14,7 @@ import { createSession } from "@/lib/auth/session";
 import { seedDemoData } from "@/lib/services/finance/demo";
 import { resetNotifications } from "@/lib/services/finance/notifications";
 import { getNotificationPrefs } from "@/lib/repo/notifications";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import type { User } from "@/lib/types";
 
 /**
@@ -71,7 +72,7 @@ export async function registerUser(input: RegisterInput): Promise<User> {
     email,
     name: input.name.trim(),
     passwordHash: await hashPassword(input.password),
-    currency: input.currency ?? "USD",
+    currency: input.currency ?? DEFAULT_CURRENCY,
   });
 
   await getNotificationPrefs(user.id);
@@ -116,7 +117,7 @@ export async function ensureDemoUser(): Promise<User> {
     email: DEMO_ACCOUNT.email,
     name: DEMO_ACCOUNT.name,
     passwordHash: await hashPassword(DEMO_ACCOUNT.password),
-    currency: "USD",
+    currency: DEFAULT_CURRENCY,
   });
 
   await getNotificationPrefs(user.id);

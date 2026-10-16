@@ -3,6 +3,7 @@ import { z } from "zod";
 import { publicRoute, ok, parseBody, ApiError } from "@/lib/api";
 import { registerUser, signInUser, AuthError } from "@/lib/services/auth/account";
 import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/session";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 const schema = z.object({
   name: z.string().trim().max(80).optional(),
@@ -28,7 +29,7 @@ export const POST = publicRoute(async (request) => {
       email: body.email,
       password: body.password,
       name: body.name ?? body.email.split("@")[0] ?? "",
-      currency: body.currency ?? "USD",
+      currency: body.currency ?? DEFAULT_CURRENCY,
       withDemoData: body.withDemoData ?? false,
     });
 

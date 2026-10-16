@@ -1,6 +1,8 @@
 import { addDays, addMonths, startOfMonth, subMonths } from "date-fns";
 import { getDb } from "@/lib/db";
 import { newId } from "@/lib/utils/id";
+import { getUserById } from "@/lib/repo/users";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { buildAmortization } from "./emi";
 import { occurrencesInRange } from "./recurrence";
 import { paydayRules } from "./payday";
@@ -48,6 +50,12 @@ export async function seedDemoData(
   const today = startOfToday();
   const now = new Date().toISOString();
 
+  // The fictional dataset is denominated in the user's base currency so its
+  // accounts and holdings are valued and totalled consistently with the rest of
+  // the app (the portfolio summary only counts holdings in the base currency).
+  const owner = await getUserById(userId);
+  const currency = owner?.currency ?? DEFAULT_CURRENCY;
+
   await clearDemoData(userId);
 
   /* ---------------------------------------------------------- accounts */
@@ -82,7 +90,7 @@ export async function seedDemoData(
             id, user_id, name, type, institution, opening_balance_cents,
             credit_limit_cents, currency, color, include_in_net_worth,
             is_archived, sort_order, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'USD', ?, 1, 0, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?)`,
         [
           account.id,
           userId,
@@ -91,6 +99,7 @@ export async function seedDemoData(
           account.institution,
           account.opening,
           account.limit,
+          currency,
           account.color,
           account.index,
           now,
@@ -312,9 +321,9 @@ export async function seedDemoData(
       await tx.run(
         `INSERT INTO investments (
             id, user_id, symbol, name, asset_type, quantity, avg_cost_cents,
-            account_id, notes, archived, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Demo holding — fictional.', 0, ?, ?)`,
-        [investmentId, userId, holding.symbol, holding.name, holding.type, holding.quantity, holding.avgCost, accounts.brokerage, now, now],
+            currency, account_id, notes, archived, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Demo holding — fictional.', 0, ?, ?)`,
+        [investmentId, userId, holding.symbol, holding.name, holding.type, holding.quantity, holding.avgCost, currency, accounts.brokerage, now, now],
       );
       await tx.run(
         `INSERT INTO investment_transactions (
