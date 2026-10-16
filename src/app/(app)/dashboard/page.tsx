@@ -209,7 +209,7 @@ export default async function DashboardPage() {
             value={money(summary.netWorthCents)}
             tone={summary.netWorthCents >= 0 ? "neutral" : "negative"}
             emphasis
-            hint={`${money(summary.cashCents)} cash · ${money(summary.investmentsCents)} invested${
+            hint={`${money(summary.cashCents)} cash · ${money(summary.investmentsCents)} investments value${
               summary.receivablesCents > 0
                 ? ` · ${money(summary.receivablesCents)} owed to you`
                 : ""
