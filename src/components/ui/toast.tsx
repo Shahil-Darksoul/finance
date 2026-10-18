@@ -28,6 +28,8 @@ export type ToastApi = {
   info: (title: string, description?: string) => string;
   /** Shows a toast plus the confetti celebration overlay. */
   celebrate: (title: string, description?: string) => string;
+  /** Fires the confetti overlay alone — for in-page celebrations like a modal. */
+  confetti: () => void;
   dismiss: (id: string) => void;
 };
 
@@ -101,7 +103,7 @@ const CONFETTI_PIECES: {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastRecord[]>([]);
-  const [celebration, setCelebration] = React.useState<string | null>(null);
+  const [confettiActive, setConfettiActive] = React.useState(false);
   const mounted = useMounted();
   const timers = React.useRef(new Map<string, number>());
   const celebrateTimer = React.useRef<number | null>(null);
@@ -132,6 +134,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [dismiss],
   );
 
+  const confetti = React.useCallback(() => {
+    setConfettiActive(true);
+    if (celebrateTimer.current) window.clearTimeout(celebrateTimer.current);
+    celebrateTimer.current = window.setTimeout(
+      () => setConfettiActive(false),
+      1700,
+    );
+  }, []);
+
   const api = React.useMemo<ToastApi>(
     () => ({
       toast,
@@ -143,14 +154,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       info: (title, description) => toast({ title, description, tone: "info" }),
       celebrate: (title, description) => {
         const id = toast({ title, description, tone: "success", duration: 5200 });
-        setCelebration(title);
-        if (celebrateTimer.current) window.clearTimeout(celebrateTimer.current);
-        celebrateTimer.current = window.setTimeout(() => setCelebration(null), 1700);
+        confetti();
         return id;
       },
+      confetti,
       dismiss,
     }),
-    [toast, dismiss],
+    [toast, confetti, dismiss],
   );
 
   React.useEffect(() => {
@@ -167,7 +177,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {mounted
         ? createPortal(
             <>
-              <ConfettiOverlay active={Boolean(celebration)} />
+              <ConfettiOverlay active={confettiActive} />
 
               <div
                 aria-live="polite"

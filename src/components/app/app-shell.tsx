@@ -17,14 +17,15 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import { ThemeToggle } from "./theme-toggle";
 import { BrandMark } from "./brand-mark";
+import { NotificationBell } from "./notification-bell";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils/cn";
+import type { NotificationRow } from "@/lib/types";
 
 /**
  * Primary navigation, grouped the way people actually look for things:
@@ -70,10 +71,12 @@ const SETTINGS_ITEM = { href: "/settings", label: "Settings", icon: Settings };
 
 export function AppShell({
   user,
+  notifications,
   unreadNotifications,
   children,
 }: {
   user: { name: string; email: string; isDemo: boolean };
+  notifications: NotificationRow[];
   unreadNotifications: number;
   children: React.ReactNode;
 }) {
@@ -250,24 +253,10 @@ export function AppShell({
           {/* Theme lives in the header only: the sidebar footer has no room for
               it on a 320px viewport, and two toggles would desync. */}
           <div className="ml-auto flex items-center gap-1.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push("/settings?tab=notifications")}
-              aria-label={
-                unreadNotifications > 0
-                  ? `Notifications, ${unreadNotifications} unread`
-                  : "Notifications"
-              }
-              className="relative"
-            >
-              <Bell className="h-4 w-4" aria-hidden />
-              {unreadNotifications > 0 ? (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
-                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                </span>
-              ) : null}
-            </Button>
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadNotifications}
+            />
             <ThemeToggle />
           </div>
         </header>

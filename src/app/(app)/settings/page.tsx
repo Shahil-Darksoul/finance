@@ -7,8 +7,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { listPaydays } from "@/lib/repo/paydays";
 import { listAccounts } from "@/lib/repo/accounts";
+import { listNotifications } from "@/lib/repo/notifications";
 import { DEPOSIT_ACCOUNT_TYPES } from "@/lib/types";
 import { PaydayManager } from "@/components/app/payday-manager";
+import { NotificationsCard } from "@/components/app/notification-list";
 import { getMarketSettingsView } from "@/lib/services/marketData/settings";
 import { MarketDataSettings } from "@/components/app/market-data-settings";
 import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
@@ -39,6 +41,11 @@ export default async function SettingsPage({
   const accounts = depositAccounts
     .filter((account) => DEPOSIT_ACCOUNT_TYPES.includes(account.type))
     .map((account) => ({ id: account.id, name: account.name }));
+
+  const showNotifications = tab === "notifications";
+  const notifications = showNotifications
+    ? await listNotifications(user.id, 25)
+    : [];
 
   const marketSettings = await getMarketSettingsView(user.id);
 
@@ -84,6 +91,10 @@ export default async function SettingsPage({
             <PaydayManager paydays={paydays} accounts={accounts} currency={DEFAULT_CURRENCY} />
           </CardBody>
         </Card>
+      ) : null}
+
+      {showNotifications ? (
+        <NotificationsCard notifications={notifications} />
       ) : null}
 
       {user.isDemo && (

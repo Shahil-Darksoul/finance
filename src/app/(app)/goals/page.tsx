@@ -6,15 +6,25 @@ import { Target, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
 import { ProgressBar } from "@/components/ui/progress";
+import { GoalCelebration } from "@/components/app/goal-celebration";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 export const dynamic = "force-dynamic";
 
 export default async function GoalsPage() {
   const user = await requireUser();
   const goals = await getGoalProgress(user.id);
+  const achieved = goals
+    .filter((entry) => entry.progressRatio >= 1)
+    .map((entry) => ({
+      id: entry.goal.id,
+      name: entry.goal.name,
+      targetCents: entry.goal.targetCents,
+    }));
 
   return (
     <div className="space-y-4">
+      <GoalCelebration goals={achieved} currency={DEFAULT_CURRENCY} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold">Savings Goals</h1>

@@ -91,7 +91,7 @@ export function NotificationList({
 }
 
 /** "just now" / "3h ago" / "2d ago" — falls back to a date past a week. */
-function formatRelative(iso: string): string {
+export function formatRelative(iso: string): string {
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return "";
 
