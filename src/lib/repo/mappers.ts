@@ -24,6 +24,8 @@ import type {
   User,
 } from "@/lib/types";
 
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
+
 export const bool = (value: unknown): boolean => value === 1 || value === true;
 export const num = (value: unknown): number => {
   const parsed = typeof value === "number" ? value : Number(value ?? 0);
@@ -483,7 +485,7 @@ export function toInvestment(row: InvestmentRow): Investment {
     assetType: row.asset_type as Investment["assetType"],
     quantity: num(row.quantity),
     avgCostCents: int(row.avg_cost_cents),
-    currency: row.currency ?? "USD",
+    currency: row.currency ?? DEFAULT_CURRENCY,
     accountId: strOrNull(row.account_id),
     notes: strOrNull(row.notes),
     archived: bool(row.archived),

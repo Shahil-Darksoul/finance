@@ -10,7 +10,6 @@ import { Field, Input, MoneyInput, Select, Textarea } from "@/components/ui/inpu
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import {
   ASSET_TYPES,
-  INVESTMENT_CURRENCIES,
   type AssetType,
   type InvestmentCurrency,
 } from "@/lib/types";
@@ -19,6 +18,7 @@ import {
   isCryptoSymbol,
 } from "@/lib/services/marketData/symbols";
 import { KNOWN_SYMBOLS } from "@/lib/services/marketData/types";
+import { formatMoney } from "@/lib/utils/money";
 
 export type NewInvestmentFormProps = {
   accounts: { id: string; name: string }[];
@@ -40,7 +40,7 @@ const ASSET_TYPE_LABELS: Record<AssetType, string> = {
  * investments page loads. Picking a known symbol also sets the asset type, so a
  * coin is never filed as a stock.
  */
-export function NewInvestmentForm({ accounts, currency }: NewInvestmentFormProps) {
+export function NewInvestmentForm({ accounts }: NewInvestmentFormProps) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -49,11 +49,7 @@ export function NewInvestmentForm({ accounts, currency }: NewInvestmentFormProps
   const [symbol, setSymbol] = React.useState("");
   const [quantityText, setQuantityText] = React.useState("");
   const [costCents, setCostCents] = React.useState(0);
-  const [tradeCurrency, setTradeCurrency] = React.useState<InvestmentCurrency>(
-    INVESTMENT_CURRENCIES.includes(currency as InvestmentCurrency)
-      ? (currency as InvestmentCurrency)
-      : "USD",
-  );
+  const tradeCurrency: InvestmentCurrency = "CAD";
 
   const lookup = React.useMemo(() => {
     const key = symbol.trim().toUpperCase();
@@ -207,7 +203,7 @@ export function NewInvestmentForm({ accounts, currency }: NewInvestmentFormProps
             </Select>
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Units held" htmlFor="quantity" error={fields.quantity} required>
               <Input
                 id="quantity"
@@ -218,31 +214,12 @@ export function NewInvestmentForm({ accounts, currency }: NewInvestmentFormProps
               />
             </Field>
             <Field
-              label="Average cost per unit"
+              label="Average cost per unit (CAD)"
               htmlFor="avgCost"
               error={fields.avgCostCents}
               required
             >
               <MoneyInput id="avgCost" valueCents={costCents} onValueChange={setCostCents} />
-            </Field>
-            <Field
-              label="Currency"
-              htmlFor="currency"
-              hint="The currency this stock trades and is shown in."
-            >
-              <Select
-                id="currency"
-                value={tradeCurrency}
-                onChange={(event) =>
-                  setTradeCurrency(event.target.value as InvestmentCurrency)
-                }
-              >
-                {INVESTMENT_CURRENCIES.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </Select>
             </Field>
           </div>
 
@@ -282,8 +259,7 @@ export function NewInvestmentForm({ accounts, currency }: NewInvestmentFormProps
         </Link>
         {positionValue ? (
           <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-            Cost basis{" "}
-            {formatCents(positionValue, tradeCurrency)}
+            Cost basis {formatCents(positionValue)}
           </span>
         ) : null}
       </div>
@@ -291,9 +267,6 @@ export function NewInvestmentForm({ accounts, currency }: NewInvestmentFormProps
   );
 }
 
-function formatCents(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
+function formatCents(cents: number): string {
+  return formatMoney(cents);
 }

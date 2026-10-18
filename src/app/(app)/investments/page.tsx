@@ -5,7 +5,6 @@ import { buttonClass } from "@/components/ui/button";
 import { TrendingUp, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
-import { resolveDisplay, convertCurrencyToDisplay } from "@/lib/services/finance/currency";
 import { listAccounts } from "@/lib/repo/accounts";
 import { EditInvestmentDialog } from "@/components/app/edit-investment-dialog";
 import { DeleteInvestmentButton } from "@/components/app/delete-investment-button";
@@ -16,28 +15,10 @@ export default async function InvestmentsPage() {
   const user = await requireUser();
   const { holdings, summary, errors } = await getHoldings(user.id);
   const accounts = await listAccounts(user.id);
-  const display = await resolveDisplay(user.currency, user.id);
 
-  // convertCurrencyToDisplay already yields display-currency cents, so these
-  // must be formatted directly — running them through displayMoney() again
-  // would convert a second time.
-  const convertedMoney = (cents: number, options?: { signed?: boolean }) =>
-    formatMoney(cents, { currency: display.currency, ...options });
-  const totalValueConverted = await (async () => {
-    let total = 0;
-    for (const h of holdings) {
-      total += await convertCurrencyToDisplay(h.marketValueCents, h.investment.currency, display);
-    }
-    return total;
-  })();
-  const totalInvestedConverted = await (async () => {
-    let total = 0;
-    for (const h of holdings) {
-      total += await convertCurrencyToDisplay(h.costBasisCents, h.investment.currency, display);
-    }
-    return total;
-  })();
-  const totalGainConverted = totalValueConverted - totalInvestedConverted;
+  const totalValue = holdings.reduce((sum, h) => sum + h.marketValueCents, 0);
+  const totalInvested = holdings.reduce((sum, h) => sum + h.costBasisCents, 0);
+  const totalGain = totalValue - totalInvested;
 
   return (
     <div className="space-y-4">
@@ -81,25 +62,25 @@ export default async function InvestmentsPage() {
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Total value</p>
-            <p className="text-xl font-semibold tabular-nums">{convertedMoney(totalValueConverted)}</p>
+            <p className="text-xl font-semibold tabular-nums">{formatMoney(totalValue)}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Cost basis</p>
-            <p className="text-xl font-semibold tabular-nums">{convertedMoney(totalInvestedConverted)}</p>
+            <p className="text-xl font-semibold tabular-nums">{formatMoney(totalInvested)}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-xs text-muted-foreground">Unrealized P/L</p>
             <p
-              className={`text-xl font-semibold tabular-nums ${totalGainConverted >= 0 ? "text-positive" : "text-negative"}`}
+              className={`text-xl font-semibold tabular-nums ${totalGain >= 0 ? "text-positive" : "text-negative"}`}
             >
-              {convertedMoney(totalGainConverted, { signed: true })}
+              {formatMoney(totalGain, { signed: true })}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-              {formatPercent(totalValueConverted === 0 || totalInvestedConverted === 0 ? 0 : totalGainConverted / totalInvestedConverted, { signed: true })} all time
+              {formatPercent(totalValue === 0 || totalInvested === 0 ? 0 : totalGain / totalInvested, { signed: true })} all time
             </p>
           </CardBody>
         </Card>
@@ -139,15 +120,12 @@ export default async function InvestmentsPage() {
                 <tbody>
                   {holdings.map((h) => {
                     const rowMoney = (cents: number, options?: { signed?: boolean }) =>
-                      formatMoney(cents, { currency: h.investment.currency, ...options });
+                      formatMoney(cents, options);
                     return (
                       <tr key={h.investment.id} className="border-b border-border/50">
                         <td className="py-2 font-medium">
                           <div className="flex items-center gap-1.5">
                             {h.investment.symbol}
-                            <span className="text-xs text-muted-foreground">
-                              {h.investment.currency}
-                            </span>
                             {h.simulated ? <Badge tone="warning">sim</Badge> : null}
                           </div>
                         </td>
@@ -204,23 +182,6 @@ export default async function InvestmentsPage() {
               </table>
             </div>
           )}
-
-          {summary.otherCurrencyTotals.length > 0 ? (
-            <div className="mt-3 space-y-1 border-t border-border/50 pt-3">
-              <p className="text-xs text-muted-foreground">
-                Totals above are in {display.currency} and already include other currencies,
-                converted at current rates. Native breakdown:
-              </p>
-              {summary.otherCurrencyTotals.map((total) => (
-                <p key={total.currency} className="text-xs text-muted-foreground tabular-nums">
-                  {total.currency}: {formatMoney(total.valueCents, { currency: total.currency })}{" "}
-                  <span className={total.gainCents >= 0 ? "text-positive" : "text-negative"}>
-                    ({formatMoney(total.gainCents, { currency: total.currency, signed: true })})
-                  </span>
-                </p>
-              ))}
-            </div>
-          ) : null}
         </CardBody>
       </Card>
     </div>

@@ -5,6 +5,7 @@ import { getNextPaydays } from "./payday";
 import { getUpcomingObligations } from "./obligations";
 import { fromISODate, monthKey, monthRangeKeys, startOfToday, toISODate } from "@/lib/utils/date";
 import { safeDivide } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import type { PaycheckProjection } from "@/lib/types";
 
 /**
@@ -45,7 +46,7 @@ export async function getPaycheckProjection(
       getAvailableCashBalance(userId),
       getAverageDiscretionaryMonthly(userId),
       listAccounts(userId).then(
-        (accounts) => accounts[0]?.currency ?? "USD",
+        (accounts) => accounts[0]?.currency ?? DEFAULT_CURRENCY,
       ),
     ]);
 

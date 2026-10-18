@@ -5,6 +5,7 @@ import { getUpcomingObligations } from "./obligations";
 import { getGoalProgress } from "./goals";
 import { getHoldings } from "./portfolio";
 import { formatMoney, formatPercent, safeDivide } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { addDays, addMonths } from "date-fns";
 import { fromISODate, startOfToday, toISODate } from "@/lib/utils/date";
 import type { HealthMetric, Insight } from "@/lib/types";
@@ -20,9 +21,9 @@ import type { HealthMetric, Insight } from "@/lib/types";
  * Nothing is invented, and nothing is framed as professional financial advice.
  */
 
-const CURRENCY_DEFAULT = "USD";
+const CURRENCY_DEFAULT = DEFAULT_CURRENCY;
 
-/** Optional display formatter — lets callers show converted (e.g. INR) amounts. */
+/** Optional money formatter — lets callers control how amounts are rendered. */
 export type MoneyFormatter = (cents: number) => string;
 
 function formatterFor(currency: string, format?: MoneyFormatter): MoneyFormatter {

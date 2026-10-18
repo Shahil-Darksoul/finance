@@ -11,8 +11,7 @@ import { DEPOSIT_ACCOUNT_TYPES } from "@/lib/types";
 import { PaydayManager } from "@/components/app/payday-manager";
 import { getMarketSettingsView } from "@/lib/services/marketData/settings";
 import { MarketDataSettings } from "@/components/app/market-data-settings";
-import { CurrencySwitcher } from "@/components/app/currency-switcher";
-import { resolveDisplay, toDisplayView } from "@/lib/services/finance/currency";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +41,6 @@ export default async function SettingsPage({
     .map((account) => ({ id: account.id, name: account.name }));
 
   const marketSettings = await getMarketSettingsView(user.id);
-  const display = await resolveDisplay(user.currency, user.id);
 
   return (
     <div className="space-y-4">
@@ -59,40 +57,10 @@ export default async function SettingsPage({
             <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{user.email}</span></div>
             <div>
               <span className="text-muted-foreground">Currency:</span>{" "}
-              <span className="font-medium">{user.currency}</span>
-              {display.converted ? (
-                <span className="text-muted-foreground">
-                  {" "}· displayed as {display.currency}
-                </span>
-              ) : null}
+              <span className="font-medium">{DEFAULT_CURRENCY}</span>
             </div>
             {user.isDemo && <div className="text-xs text-warning">Demo account</div>}
           </div>
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader
-          title="Display currency"
-          description="Your records stay in your base currency. Pick another to view everything converted at live exchange rates."
-        />
-        <CardBody className="space-y-3">
-          <CurrencySwitcher display={toDisplayView(display)} />
-          <p className="text-xs text-muted-foreground">
-            Base currency <span className="font-medium text-foreground">{display.baseCurrency}</span>
-            {display.converted ? (
-              <>
-                {" "}· showing in <span className="font-medium text-foreground">{display.currency}</span>
-                {" "}· 1 {display.baseCurrency} ≈{" "}
-                {display.rate >= 100 ? display.rate.toFixed(1) : display.rate.toFixed(2)}{" "}
-                {display.currency}{" "}
-                {display.live ? "(live rate)" : "(approximate — live feed unavailable)"}
-              </>
-            ) : (
-              " · showing stored amounts"
-            )}
-            .
-          </p>
         </CardBody>
       </Card>
 
@@ -113,7 +81,7 @@ export default async function SettingsPage({
             description="Your income schedule — each entry repeats on your calendar and feeds the paycheck projection."
           />
           <CardBody>
-            <PaydayManager paydays={paydays} accounts={accounts} currency={user.currency} />
+            <PaydayManager paydays={paydays} accounts={accounts} currency={DEFAULT_CURRENCY} />
           </CardBody>
         </Card>
       ) : null}

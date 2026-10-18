@@ -50,9 +50,8 @@ export async function seedDemoData(
   const today = startOfToday();
   const now = new Date().toISOString();
 
-  // The fictional dataset is denominated in the user's base currency so its
-  // accounts and holdings are valued and totalled consistently with the rest of
-  // the app (the portfolio summary only counts holdings in the base currency).
+  // The fictional dataset is denominated in the app's single currency so its
+  // accounts and holdings are valued and totalled consistently everywhere.
   const owner = await getUserById(userId);
   const currency = owner?.currency ?? DEFAULT_CURRENCY;
 

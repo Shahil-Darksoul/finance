@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { newId } from "@/lib/utils/id";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import type {
   AssetType,
   Investment,
@@ -45,7 +46,7 @@ export type InvestmentInput = {
   assetType?: AssetType;
   quantity: number;
   avgCostCents: number;
-  /** The currency this holding is priced and displayed in. Defaults to USD. */
+  /** The currency this holding is priced and displayed in. Defaults to CAD. */
   currency?: string;
   accountId?: string | null;
   notes?: string | null;
@@ -72,7 +73,7 @@ export async function createInvestment(
       input.assetType ?? "stock",
       input.quantity,
       Math.max(0, Math.trunc(input.avgCostCents)),
-      input.currency ?? "USD",
+      input.currency ?? DEFAULT_CURRENCY,
       input.accountId ?? null,
       input.notes ?? null,
       input.archived ? 1 : 0,

@@ -5,12 +5,7 @@ import { listCategories } from "@/lib/repo/categories";
 import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteTransactionButton } from "@/components/app/delete-transaction-button";
-import {
-  convertCents,
-  displayMoney,
-  rateLabel,
-  resolveDisplay,
-} from "@/lib/services/finance/currency";
+import { formatMoney } from "@/lib/utils/money";
 import { Receipt, Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -18,14 +13,13 @@ export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
   const user = await requireUser();
-  const [transactions, accounts, categories, display] = await Promise.all([
+  const [transactions, accounts, categories] = await Promise.all([
     listTransactions(user.id, { limit: 50 }),
     listAccounts(user.id),
     listCategories(user.id),
-    resolveDisplay(user.currency, user.id),
   ]);
 
-  const money = displayMoney(display);
+  const money = formatMoney;
   const accountMap = new Map(accounts.map(a => [a.id, a]));
   const categoryMap = new Map(categories.map(c => [c.id, c]));
 
@@ -36,9 +30,6 @@ export default async function TransactionsPage() {
           <h1 className="text-lg font-semibold">Transactions</h1>
           <p className="text-xs text-muted-foreground">
             Track income, expenses, and transfers
-            {display.converted && rateLabel(display)
-              ? ` · shown in ${display.currency} at ${rateLabel(display)}`
-              : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -102,9 +93,8 @@ export default async function TransactionsPage() {
                               description: t.description,
                               merchant: t.merchant,
                               type: t.type,
-                              amountCents: convertCents(t.amountCents, display),
+                              amountCents: t.amountCents,
                             }}
-                            currency={display.currency}
                           />
                         </td>
                       </tr>

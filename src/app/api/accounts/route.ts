@@ -2,6 +2,7 @@ import { z } from "zod";
 import { route, ok, parseBody } from "@/lib/api";
 import { createAccount } from "@/lib/repo/accounts";
 import { ACCOUNT_TYPES } from "@/lib/types";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Give this account a name."),
@@ -23,7 +24,7 @@ export const POST = route(async (request, user) => {
     institution: body.institution ?? null,
     openingBalanceCents: body.openingBalanceCents ?? 0,
     creditLimitCents: body.creditLimitCents ?? 0,
-    currency: body.currency ?? user.currency,
+    currency: DEFAULT_CURRENCY,
     note: body.note ?? null,
     includeInNetWorth: body.includeInNetWorth ?? true,
   });

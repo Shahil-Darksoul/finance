@@ -12,6 +12,7 @@ import {
   type NotificationPrefs,
 } from "@/lib/repo/notifications";
 import { formatMoney } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { startOfMonth, startOfToday, subMonths, toISODate } from "@/lib/utils/date";
 import type { NotificationKey } from "@/lib/types";
 
@@ -27,7 +28,7 @@ const LOW_BALANCE_THRESHOLD_CENTS = 50_000; // $500
 /** Accounts below this balance raise a warning. */
 export async function generateNotifications(
   userId: string,
-  currency = "USD",
+  currency = DEFAULT_CURRENCY,
 ): Promise<void> {
   const prefs = await getNotificationPrefs(userId);
   const enabled = (key: NotificationKey) => prefs[key] !== false;

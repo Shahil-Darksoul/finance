@@ -9,6 +9,7 @@ import {
 } from "@/lib/types";
 import { parseSymbol, CRYPTO_SYMBOLS } from "@/lib/services/marketData/symbols";
 import { KNOWN_SYMBOLS } from "@/lib/services/marketData/types";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 const schema = z.object({
   symbol: z.string().trim().min(1, "Enter a ticker symbol."),
@@ -41,12 +42,12 @@ export const POST = route(async (request, user) => {
       ? (CRYPTO_SYMBOLS[parsed.base]?.name ?? symbol)
       : (KNOWN_SYMBOLS.find((row) => row.symbol === symbol)?.name ?? symbol);
 
-  // Default the holding's currency to the account currency when it is one we
-  // record, otherwise fall back to USD.
+  // Default the holding's currency to the user's base currency when it is one
+  // we record, otherwise fall back to the app default.
   const currency: InvestmentCurrency = body.currency ??
     (INVESTMENT_CURRENCIES.includes(user.currency as InvestmentCurrency)
       ? (user.currency as InvestmentCurrency)
-      : "USD");
+      : (DEFAULT_CURRENCY as InvestmentCurrency));
 
   const { investment, merged } = await upsertInvestmentHolding(user.id, {
     symbol,

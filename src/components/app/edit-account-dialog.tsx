@@ -9,10 +9,6 @@ import { Field, Input, MoneyInput, Select, Switch, Textarea } from "@/components
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { useToast } from "@/components/ui/toast";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_META, type AccountType } from "@/lib/types";
-import {
-  DISPLAY_CURRENCY_CODES,
-  DISPLAY_CURRENCY_LABELS,
-} from "@/lib/utils/currency";
 
 export type EditableAccount = {
   id: string;
@@ -44,26 +40,18 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
   const [name, setName] = React.useState(account.name);
   const [type, setType] = React.useState<AccountType>(account.type);
   const [institution, setInstitution] = React.useState(account.institution ?? "");
-  const [currency, setCurrency] = React.useState(account.currency);
   const [balanceCents, setBalanceCents] = React.useState(account.currentBalanceCents);
   const [creditLimitCents, setCreditLimitCents] = React.useState(account.creditLimitCents);
   const [includeInNetWorth, setIncludeInNetWorth] = React.useState(account.includeInNetWorth);
   const [note, setNote] = React.useState(account.note ?? "");
 
   const isLiability = LIABILITY_TYPES.has(type);
-
-  // Always offer the account's current code, even if it predates the list.
-  const currencyOptions = DISPLAY_CURRENCY_CODES.includes(
-    account.currency as (typeof DISPLAY_CURRENCY_CODES)[number],
-  )
-    ? DISPLAY_CURRENCY_CODES
-    : [account.currency, ...DISPLAY_CURRENCY_CODES];
+  const currency = "CAD";
 
   function openDialog() {
     setName(account.name);
     setType(account.type);
     setInstitution(account.institution ?? "");
-    setCurrency(account.currency);
     setBalanceCents(
       LIABILITY_TYPES.has(account.type)
         ? Math.abs(account.currentBalanceCents)
@@ -175,22 +163,8 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
             </Select>
           </Field>
 
-          <Field
-            label="Currency"
-            htmlFor="edit-currency"
-            hint="The currency this account's amounts are stored in."
-          >
-            <Select
-              id="edit-currency"
-              value={currency}
-              onChange={(event) => setCurrency(event.target.value)}
-            >
-              {currencyOptions.map((code) => (
-                <option key={code} value={code}>
-                  {DISPLAY_CURRENCY_LABELS[code as keyof typeof DISPLAY_CURRENCY_LABELS] ?? code}
-                </option>
-              ))}
-            </Select>
+          <Field label="Currency" htmlFor="edit-currency" hint="Amounts are stored in CAD.">
+            <Input id="edit-currency" value="CAD" readOnly disabled />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">

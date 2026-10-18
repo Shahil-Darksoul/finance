@@ -1,7 +1,8 @@
 import { addMonths } from "date-fns";
 import { SCENARIO_META, type ForecastAssumptions, type ForecastPoint, type ForecastResult, type Scenario } from "@/lib/types";
 import { startOfToday, toISODate } from "@/lib/utils/date";
-import { safeDivide } from "@/lib/utils/money";
+import { safeDivide, formatMoney } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 /**
  * Savings & net-worth forecasting engine.
@@ -260,13 +261,10 @@ export const FALLBACK_ANNUAL_RETURN = DEFAULT_ANNUAL_RETURN;
 /** Human-readable assumption sheet shown above every projection. */
 export function describeAssumptions(
   assumptions: ForecastAssumptions,
-  currency = "USD",
+  currency = DEFAULT_CURRENCY,
 ): { label: string; value: string; detail: string }[] {
   const money = (cents: number) =>
-    `$${(cents / 100).toLocaleString("en-US", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })}${currency === "USD" ? "" : ` ${currency}`}`;
+    formatMoney(cents, { currency, trimZeroes: true });
 
   return [
     {

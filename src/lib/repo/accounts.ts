@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { newId } from "@/lib/utils/id";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { ACCOUNT_TYPE_META, type Account, type AccountType } from "@/lib/types";
 import {
   type AccountRow,
@@ -124,7 +125,7 @@ export async function createAccount(
       input.institution ?? null,
       normalizeOpeningBalance(input.type, input.openingBalanceCents),
       input.creditLimitCents ?? 0,
-      input.currency ?? "USD",
+      input.currency ?? DEFAULT_CURRENCY,
       input.color ?? null,
       input.icon ?? null,
       input.note ?? null,

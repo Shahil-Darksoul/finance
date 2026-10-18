@@ -9,6 +9,7 @@ import { Field, Textarea } from "@/components/ui/input";
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { useToast } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import { TRANSACTION_TYPE_META, type TransactionType } from "@/lib/types";
 
@@ -30,10 +31,10 @@ const MIN_NOTE_LENGTH = 3;
  */
 export function DeleteTransactionButton({
   transaction,
-  currency,
+  currency = DEFAULT_CURRENCY,
 }: {
   transaction: DeletableTransaction;
-  currency: string;
+  currency?: string;
 }) {
   const router = useRouter();
   const { success } = useToast();

@@ -434,8 +434,12 @@ export type GoalProgress = {
   projectedContributionCents: number;
 };
 
-/** Currencies a holding's price and cost are recorded in. No FX conversion. */
-export const INVESTMENT_CURRENCIES = ["USD", "CAD"] as const;
+/**
+ * Currencies a holding's price and cost may be recorded in. The app is
+ * single-currency, so this is CAD only: no rate is ever fetched and no amount
+ * is ever converted.
+ */
+export const INVESTMENT_CURRENCIES = ["CAD"] as const;
 export type InvestmentCurrency = (typeof INVESTMENT_CURRENCIES)[number];
 
 export type Investment = {
@@ -446,7 +450,7 @@ export type Investment = {
   assetType: AssetType;
   quantity: number;
   avgCostCents: number;
-  /** The currency this holding is priced and displayed in. */
+  /** The currency this holding's price and cost are recorded in (always CAD). */
   currency: string;
   accountId: string | null;
   notes: string | null;
@@ -502,16 +506,8 @@ export type Quote = {
 
 export type PricePoint = { date: string; closeCents: number };
 
-/** Totals for holdings that are not in the portfolio's primary currency. */
-export type CurrencySubtotal = {
-  currency: string;
-  valueCents: number;
-  investedCents: number;
-  gainCents: number;
-};
-
 export type PortfolioSummary = {
-  /** The primary currency these totals are expressed in (the account currency). */
+  /** The currency these totals are expressed in (the app is CAD-only). */
   currency: string;
   totalValueCents: number;
   investedCents: number;
@@ -520,8 +516,6 @@ export type PortfolioSummary = {
   dayChangeCents: number;
   dayChangeRatio: number;
   holdingsCount: number;
-  /** Native-currency subtotals for holdings outside `currency` (never converted). */
-  otherCurrencyTotals: CurrencySubtotal[];
   asOf: string;
   simulated: boolean;
   provider: string | null;

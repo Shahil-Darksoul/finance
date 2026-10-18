@@ -36,44 +36,6 @@ export async function getUserMarketSettings(
  * it entirely to leave the stored key untouched (so saving the provider alone
  * never wipes a key the user already entered).
  */
-/** Preferred display currency, or null when amounts should stay in the base currency. */
-export async function getDisplayCurrency(userId: string): Promise<string | null> {
-  const db = await getDb();
-  const row = await db.get<{ display_currency: string | null }>(
-    `SELECT display_currency FROM user_settings WHERE user_id = ?`,
-    [userId],
-  );
-  const value = row?.display_currency?.trim();
-  return value ? value : null;
-}
-
-/** Stores the display currency preference (null clears it back to the base currency). */
-export async function setDisplayCurrency(
-  userId: string,
-  currency: string | null,
-): Promise<void> {
-  const db = await getDb();
-  const now = new Date().toISOString();
-  const value = currency?.trim() ? currency.trim().toUpperCase() : null;
-
-  const current = await db.get<{ user_id: string }>(
-    `SELECT user_id FROM user_settings WHERE user_id = ?`,
-    [userId],
-  );
-
-  if (current) {
-    await db.run(
-      `UPDATE user_settings SET display_currency = ?, updated_at = ? WHERE user_id = ?`,
-      [value, now, userId],
-    );
-  } else {
-    await db.run(
-      `INSERT INTO user_settings (user_id, display_currency, updated_at) VALUES (?, ?, ?)`,
-      [userId, value, now],
-    );
-  }
-}
-
 export async function saveUserMarketSettings(
   userId: string,
   input: { apiKey?: string | null; provider?: string | null },

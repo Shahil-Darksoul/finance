@@ -36,16 +36,11 @@ import { getPortfolioSummary } from "@/lib/services/finance/portfolio";
 import { getGoalProgress, summariseGoals } from "@/lib/services/finance/goals";
 import { getUpcomingObligations } from "@/lib/services/finance/obligations";
 import { listTransactions } from "@/lib/repo/transactions";
-import {
-  convertCents,
-  displayMoney,
-  rateLabel,
-  resolveDisplay,
-} from "@/lib/services/finance/currency";
 import { listNotifications } from "@/lib/repo/notifications";
 import { generateNotifications } from "@/lib/services/finance/notifications";
 import { listAccounts } from "@/lib/repo/accounts";
-import { formatPercent } from "@/lib/utils/money";
+import { formatMoney, formatPercent } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import { addDays } from "date-fns";
 import { startOfToday } from "@/lib/utils/date";
@@ -69,34 +64,31 @@ export default async function DashboardPage() {
   // Deriving notifications is a side effect, so it runs before the read. A
   // failure here must not blank the dashboard, hence the all-settled wrapper.
   const [generated] = await Promise.allSettled([
-    generateNotifications(user.id, user.currency),
+    generateNotifications(user.id, DEFAULT_CURRENCY),
   ]);
   if (generated.status === "rejected") {
     console.error("[dashboard] notification generation failed", generated.reason);
   }
 
-  const [summary, paycheck, analytics, notifications, accounts, display, portfolio, recentTransactions, goalProgress, obligations] =
+  const [summary, paycheck, analytics, notifications, accounts, portfolio, recentTransactions, goalProgress, obligations] =
     await Promise.all([
       getFinancialSummary(user.id),
       getPaycheckProjection(user.id),
       getAnalytics(user.id, "6m"),
       listNotifications(user.id, 6),
       listAccounts(user.id),
-      resolveDisplay(user.currency, user.id),
       getPortfolioSummary(user.id),
       listTransactions(user.id, { limit: 4 }),
       getGoalProgress(user.id),
       getUpcomingObligations(user.id, { until: addDays(startOfToday(), 30) }),
     ]);
 
-  // Health and insights format their own figures, so they run after the display
-  // context is known and can show converted (e.g. INR) amounts.
-  const money = displayMoney(display);
+  const money = formatMoney;
   const [health, insights] = await Promise.all([
-    getFinancialHealth(user.id, user.currency, money),
-    buildInsights(user.id, user.currency, money),
+    getFinancialHealth(user.id, DEFAULT_CURRENCY, money),
+    buildInsights(user.id, DEFAULT_CURRENCY, money),
   ]);
-  const currency = display.currency;
+  const currency = DEFAULT_CURRENCY;
   const progress = monthProgress(today);
 
   const hasAnyAccount = accounts.length > 0;
@@ -111,21 +103,21 @@ export default async function DashboardPage() {
   const netWorthPoints = analytics.netWorthSeries
     .map((point) => ({
       label: point.date,
-      netWorthCents: convertCents(point.netWorthCents, display),
+      netWorthCents: point.netWorthCents,
     }))
     .slice(-12);
 
   const flowPoints = analytics.monthlySeries.map((point) => ({
     label: shortMonth(point.month),
-    incomeCents: convertCents(point.incomeCents, display),
-    expenseCents: convertCents(point.expenseCents, display),
+    incomeCents: point.incomeCents,
+    expenseCents: point.expenseCents,
   }));
 
   const categorySlices = analytics.expenseByCategory
     .slice(0, 8)
     .map((row) => ({
       name: row.categoryName,
-      amountCents: convertCents(row.amountCents, display),
+      amountCents: row.amountCents,
       ratio: row.ratio,
       color: row.color,
     }));
@@ -158,15 +150,6 @@ export default async function DashboardPage() {
             {summary.monthlyIncomeCents > 0
               ? `${formatPercent(progress, { digits: 0 })} through the month`
               : "Add a paycheck to get started"}
-            {display.converted && rateLabel(display) ? (
-              <>
-                {" · "}
-                <span className="text-muted-foreground/70">
-                  converted at {rateLabel(display)}
-                  {display.live ? "" : " (approx.)"}
-                </span>
-              </>
-            ) : null}
           </p>
         </div>
 

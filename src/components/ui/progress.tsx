@@ -4,6 +4,7 @@ import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils/cn";
 import { clamp01, formatMoney } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 
 /* ------------------------------------------------------------ Progress bar */
 
@@ -239,7 +240,7 @@ export function AnimatedNumber({
 /** Convenience wrapper: animated currency. */
 export function AnimatedMoney({
   valueCents,
-  currency = "USD",
+  currency = DEFAULT_CURRENCY,
   signed = false,
   className,
 }: {

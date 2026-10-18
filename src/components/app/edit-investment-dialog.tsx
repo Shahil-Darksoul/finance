@@ -10,7 +10,6 @@ import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { useToast } from "@/components/ui/toast";
 import {
   ASSET_TYPES,
-  INVESTMENT_CURRENCIES,
   type AssetType,
   type InvestmentCurrency,
 } from "@/lib/types";
@@ -54,9 +53,10 @@ export function EditInvestmentDialog({
   const [assetType, setAssetType] = React.useState<AssetType>(investment.assetType);
   const [quantity, setQuantity] = React.useState(investment.quantity.toString());
   const [avgCostCents, setAvgCostCents] = React.useState(investment.avgCostCents);
-  const [currency, setCurrency] = React.useState<InvestmentCurrency>(investment.currency);
   const [accountId, setAccountId] = React.useState(investment.accountId ?? "");
   const [notes, setNotes] = React.useState(investment.notes ?? "");
+
+  const currency: InvestmentCurrency = "CAD";
 
   function openDialog() {
     setSymbol(investment.symbol);
@@ -64,7 +64,6 @@ export function EditInvestmentDialog({
     setAssetType(investment.assetType);
     setQuantity(investment.quantity.toString());
     setAvgCostCents(investment.avgCostCents);
-    setCurrency(investment.currency);
     setAccountId(investment.accountId ?? "");
     setNotes(investment.notes ?? "");
     setError(null);
@@ -185,7 +184,7 @@ export function EditInvestmentDialog({
             </Select>
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Units held" htmlFor="edit-quantity" error={fields.quantity} required>
               <Input
                 id="edit-quantity"
@@ -194,25 +193,12 @@ export function EditInvestmentDialog({
                 onChange={(event) => setQuantity(event.target.value)}
               />
             </Field>
-            <Field label="Average cost" htmlFor="edit-avgCost" error={fields.avgCostCents} required>
+            <Field label="Average cost (CAD)" htmlFor="edit-avgCost" error={fields.avgCostCents} required>
               <MoneyInput
                 id="edit-avgCost"
                 valueCents={avgCostCents}
                 onValueChange={setAvgCostCents}
               />
-            </Field>
-            <Field label="Currency" htmlFor="edit-currency" required>
-              <Select
-                id="edit-currency"
-                value={currency}
-                onChange={(event) => setCurrency(event.target.value as InvestmentCurrency)}
-              >
-                {INVESTMENT_CURRENCIES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </Select>
             </Field>
           </div>
 

@@ -14,7 +14,6 @@ const schema = z.object({
    */
   balanceCents: z.number().int().optional(),
   creditLimitCents: z.number().int().min(0).optional(),
-  currency: z.string().trim().length(3).optional(),
   note: z.string().trim().max(280).nullable().optional(),
   includeInNetWorth: z.boolean().optional(),
 });
@@ -51,7 +50,6 @@ export const PATCH = route(async (request, user, context) => {
   if (body.type !== undefined) update.type = body.type;
   if (body.institution !== undefined) update.institution = body.institution;
   if (body.creditLimitCents !== undefined) update.creditLimitCents = body.creditLimitCents;
-  if (body.currency !== undefined) update.currency = body.currency;
   if (body.note !== undefined) update.note = body.note;
   if (body.includeInNetWorth !== undefined) update.includeInNetWorth = body.includeInNetWorth;
 

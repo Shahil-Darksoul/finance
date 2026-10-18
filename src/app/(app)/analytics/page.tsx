@@ -27,13 +27,8 @@ import { StatTile, TrendChip } from "@/components/app/stat-tile";
 import { Badge, Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Button, buttonClass } from "@/components/ui/button";
 import { ProgressBar, ProgressRing } from "@/components/ui/progress";
-import {
-  convertCents,
-  displayMoney,
-  rateLabel,
-  resolveDisplay,
-} from "@/lib/services/finance/currency";
-import { formatPercent } from "@/lib/utils/money";
+import { formatMoney, formatPercent } from "@/lib/utils/money";
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import type { ReactNode } from "react";
 
@@ -87,16 +82,13 @@ export default async function AnalyticsPage({
   const params = await searchParams;
   const range = parseRange(params.range);
 
-  const display = await resolveDisplay(user.currency, user.id);
-  const money = displayMoney(display);
+  const money = formatMoney;
 
   const [analytics, health, insights] = await Promise.all([
     getAnalytics(user.id, range),
-    getFinancialHealth(user.id, user.currency, money),
-    buildInsights(user.id, user.currency, money),
+    getFinancialHealth(user.id, DEFAULT_CURRENCY, money),
+    buildInsights(user.id, DEFAULT_CURRENCY, money),
   ]);
-
-  const converted = display.converted;
 
   const series =
     analytics.monthlySeries.length > MAX_SERIES_MONTHS
@@ -105,25 +97,25 @@ export default async function AnalyticsPage({
 
   const flowPoints = series.map((p) => ({
     label: shortMonth(p.month),
-    incomeCents: convertCents(p.incomeCents, display),
-    expenseCents: convertCents(p.expenseCents, display),
+    incomeCents: p.incomeCents,
+    expenseCents: p.expenseCents,
   }));
 
   const savingsPoints = series.map((p) => ({
     label: shortMonth(p.month),
-    savingsCents: convertCents(p.savingsCents, display),
+    savingsCents: p.savingsCents,
   }));
 
   const catSlices = analytics.expenseByCategory.slice(0, 10).map((c) => ({
     name: c.categoryName,
-    amountCents: convertCents(c.amountCents, display),
+    amountCents: c.amountCents,
     ratio: c.ratio,
     color: c.color,
   }));
 
   const incomeSlices = analytics.incomeByCategory.slice(0, 6).map((c) => ({
     name: c.categoryName,
-    amountCents: convertCents(c.amountCents, display),
+    amountCents: c.amountCents,
     ratio: c.ratio,
     color: c.color,
   }));
@@ -133,7 +125,7 @@ export default async function AnalyticsPage({
       month: "short",
       day: "numeric",
     }),
-    netWorthCents: convertCents(p.netWorthCents, display),
+    netWorthCents: p.netWorthCents,
   }));
 
   // Best and worst months by money kept, for a quick "range at a glance".
@@ -169,15 +161,6 @@ export default async function AnalyticsPage({
             {analytics.firstTransactionDate
               ? ` · track record starts ${analytics.firstTransactionDate}`
               : ""}
-            {converted && rateLabel(display) ? (
-              <>
-                {" · "}
-                <span className="text-muted-foreground/70">
-                  converted at {rateLabel(display)}
-                  {display.live ? "" : " (approx.)"}
-                </span>
-              </>
-            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -298,14 +281,14 @@ export default async function AnalyticsPage({
                 icon={<BarChart3 className="h-4 w-4" />}
               />
               <CardBody>
-                <IncomeExpenseChart data={flowPoints} currency={display.currency} />
+                <IncomeExpenseChart data={flowPoints} currency={DEFAULT_CURRENCY} />
               </CardBody>
             </Card>
 
             <Card>
               <CardHeader title="Net worth" description="Assets minus liabilities" />
               <CardBody>
-                <NetWorthChart data={nwPoints} currency={display.currency} />
+                <NetWorthChart data={nwPoints} currency={DEFAULT_CURRENCY} />
               </CardBody>
             </Card>
 
@@ -316,7 +299,7 @@ export default async function AnalyticsPage({
                 icon={<PiggyBank className="h-4 w-4" />}
               />
               <CardBody>
-                <MonthlySavingsChart data={savingsPoints} currency={display.currency} />
+                <MonthlySavingsChart data={savingsPoints} currency={DEFAULT_CURRENCY} />
               </CardBody>
             </Card>
 
@@ -362,7 +345,7 @@ export default async function AnalyticsPage({
                 description={`Spending by category · ${analytics.range.label}`}
               />
               <CardBody>
-                <CategoryDonut data={catSlices} currency={display.currency} />
+                <CategoryDonut data={catSlices} currency={DEFAULT_CURRENCY} />
               </CardBody>
             </Card>
             <Card>
@@ -371,7 +354,7 @@ export default async function AnalyticsPage({
                 description={`Income by category · ${analytics.range.label}`}
               />
               <CardBody>
-                <CategoryDonut data={incomeSlices} currency={display.currency} />
+                <CategoryDonut data={incomeSlices} currency={DEFAULT_CURRENCY} />
               </CardBody>
             </Card>
           </section>

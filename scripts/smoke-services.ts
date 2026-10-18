@@ -22,7 +22,7 @@ import { listAccounts } from "@/lib/repo/accounts";
 import { listTransactions } from "@/lib/repo/transactions";
 import { formatMoney } from "@/lib/utils/money";
 
-const money = (cents: number) => formatMoney(cents, { currency: "USD" });
+const money = (cents: number) => formatMoney(cents);
 const pct = (ratio: number) => `${(ratio * 100).toFixed(1)}%`;
 
 let failures = 0;

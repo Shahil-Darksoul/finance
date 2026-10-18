@@ -39,7 +39,7 @@ export const migrations: Migration[] = [
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         name TEXT NOT NULL,
-        currency TEXT NOT NULL DEFAULT 'USD',
+        currency TEXT NOT NULL DEFAULT 'CAD',
         is_demo INTEGER NOT NULL DEFAULT 0,
         onboarding_step INTEGER NOT NULL DEFAULT 0,
         created_at ${TS},
@@ -73,7 +73,7 @@ export const migrations: Migration[] = [
         institution TEXT,
         opening_balance_cents ${MONEY},
         credit_limit_cents ${MONEY},
-        currency TEXT NOT NULL DEFAULT 'USD',
+        currency TEXT NOT NULL DEFAULT 'CAD',
         color TEXT,
         icon TEXT,
         note TEXT,
@@ -433,8 +433,8 @@ export const migrations: Migration[] = [
     id: "0008_investment_currency_user_market_settings",
     statements: [
       // Holdings are priced in their own currency (e.g. TSX tickers in CAD,
-      // US tickers in USD); nothing is converted. Existing rows default to USD.
-      `ALTER TABLE investments ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'`,
+      // US tickers in USD); nothing is converted. Existing rows default to CAD.
+      `ALTER TABLE investments ADD COLUMN currency TEXT NOT NULL DEFAULT 'CAD'`,
 
       // Per-user market-data credentials. Server-only: they are never selected
       // into the browser-facing user shape. Env vars remain a fallback.
@@ -444,14 +444,6 @@ export const migrations: Migration[] = [
         market_provider TEXT,
         updated_at ${TS}
       )`,
-    ],
-  },
-  {
-    id: "0009_display_currency",
-    statements: [
-      // Preferred display currency, converted from the account's base currency
-      // at live exchange rates. NULL means "show amounts in the base currency".
-      `ALTER TABLE user_settings ADD COLUMN display_currency TEXT`,
     ],
   },
   {
@@ -466,7 +458,7 @@ export const migrations: Migration[] = [
         asset_type TEXT,
         quantity REAL NOT NULL DEFAULT 0,
         avg_cost_cents INTEGER NOT NULL DEFAULT 0,
-        currency TEXT NOT NULL DEFAULT 'USD',
+        currency TEXT NOT NULL DEFAULT 'CAD',
         account_id TEXT,
         investment_notes TEXT,
         deletion_note TEXT NOT NULL,
@@ -492,7 +484,7 @@ export const migrations: Migration[] = [
         institution TEXT,
         opening_balance_cents INTEGER NOT NULL DEFAULT 0,
         credit_limit_cents INTEGER NOT NULL DEFAULT 0,
-        currency TEXT NOT NULL DEFAULT 'USD',
+        currency TEXT NOT NULL DEFAULT 'CAD',
         color TEXT,
         icon TEXT,
         account_notes TEXT,
@@ -502,6 +494,20 @@ export const migrations: Migration[] = [
       )`,
       `CREATE INDEX IF NOT EXISTS idx_account_deletions_user
         ON account_deletions(user_id, deleted_at)`,
+    ],
+  },
+  {
+    id: "0012_single_currency_cad",
+    statements: [
+      // The app is single-currency: every amount is stored and shown in
+      // Canadian dollars and nothing is ever converted. Rows written while the
+      // app still accepted other codes keep their numeric value and are simply
+      // relabelled, so the whole site reads in CAD.
+      `UPDATE users SET currency = 'CAD' WHERE currency <> 'CAD'`,
+      `UPDATE accounts SET currency = 'CAD' WHERE currency <> 'CAD'`,
+      `UPDATE investments SET currency = 'CAD' WHERE currency <> 'CAD'`,
+      `UPDATE investment_deletions SET currency = 'CAD' WHERE currency <> 'CAD'`,
+      `UPDATE account_deletions SET currency = 'CAD' WHERE currency <> 'CAD'`,
     ],
   },
 ];

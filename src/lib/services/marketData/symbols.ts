@@ -97,30 +97,21 @@ export function isCryptoSymbol(raw: string): boolean {
   return parseSymbol(raw).kind === "crypto";
 }
 
-/** Asset types that trade on an exchange like an equity. */
-const EQUITY_ASSET_TYPES = new Set(["stock", "etf", "mutual_fund", "bond"]);
-
 /**
- * The symbol to ask a market-data provider for.
+ * TSX variant of a bare ticker, or null when the symbol is not eligible.
  *
  * Holdings store the ticker the user typed (`VFV`), but a TSX-listed security
- * only resolves when addressed with an exchange suffix (`VFV.TO`). Currency is
- * the honest signal we already have: a Canadian-dollar equity is TSX-listed, so
- * it is qualified here without changing what the user sees or what we store.
- * Anything already qualified (a `.TO`, `.V`, `BINANCE:` pair, etc.) is left
- * alone, and non-equities (crypto) are never suffixed.
+ * only resolves when addressed with an exchange suffix (`VFV.TO`). The bare
+ * symbol is always requested first, so a US-listed ticker keeps its own price,
+ * and the market-data facade retries whatever the provider could not price with
+ * the candidate returned here. Symbols already qualified (`.TO`, `.V`,
+ * `BINANCE:` …) and crypto pairs are never suffixed.
  */
-export function quoteLookupSymbol(input: {
-  symbol: string;
-  currency: string;
-  assetType: string;
-}): string {
-  const symbol = input.symbol.trim().toUpperCase();
-  if (!symbol || symbol.includes(".") || symbol.includes(":")) return symbol;
-  const isEquity = EQUITY_ASSET_TYPES.has(input.assetType);
-  return isEquity && input.currency.trim().toUpperCase() === "CAD"
-    ? `${symbol}.TO`
-    : symbol;
+export function tsxLookupSymbol(raw: string): string | null {
+  const symbol = raw.trim().toUpperCase();
+  if (!symbol || symbol.includes(".") || symbol.includes(":")) return null;
+  if (parseSymbol(symbol).kind !== "equity") return null;
+  return `${symbol}.TO`;
 }
 
 /** Drop a trailing quote asset, so `BTCUSDT` becomes `BTC`. */

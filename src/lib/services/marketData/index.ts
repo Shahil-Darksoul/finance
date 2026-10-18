@@ -6,6 +6,7 @@ import {
   type ProviderHealth,
   MarketDataError,
 } from "./types";
+import { tsxLookupSymbol } from "./symbols";
 
 /**
  * Credentials for a request. When omitted the environment is used, so callers
@@ -265,19 +266,53 @@ export async function getQuotes(
 
   if (stale.length === 0) return { quotes, errors: [] };
 
+  // Callers and the cache both speak the symbol the holding stores, so a quote
+  // fetched under an exchange-qualified variant is filed under the bare symbol.
+  const store = async (symbol: string, quote: Quote) => {
+    const keyed = quote.symbol.toUpperCase() === symbol ? quote : { ...quote, symbol };
+    quotes.set(symbol, keyed);
+    await writeCachedQuote(keyed);
+  };
+
+  let providerError: unknown = null;
   try {
     const fetched = await withRetry(
       () => provider.getQuotes(stale),
       provider.name,
     );
-    for (const [symbol, quote] of fetched) {
-      quotes.set(symbol, quote);
-      await writeCachedQuote(quote);
-    }
+    for (const [symbol, quote] of fetched) await store(symbol.toUpperCase(), quote);
   } catch (error) {
+    providerError = error;
+  }
+
+  // TSX fallback: a Canadian listing does not resolve under its bare ticker,
+  // so whatever the provider could not price is retried with the `.TO` suffix.
+  // US-listed tickers resolve above and never reach this path.
+  const unresolved = stale.filter((symbol) => !quotes.has(symbol));
+  const tsxCandidates = new Map<string, string>();
+  for (const symbol of unresolved) {
+    const candidate = tsxLookupSymbol(symbol);
+    if (candidate) tsxCandidates.set(candidate, symbol);
+  }
+  if (tsxCandidates.size > 0) {
+    try {
+      const fetched = await withRetry(
+        () => provider.getQuotes([...tsxCandidates.keys()]),
+        provider.name,
+      );
+      for (const [candidate, quote] of fetched) {
+        const symbol = tsxCandidates.get(candidate.toUpperCase());
+        if (symbol) await store(symbol, quote);
+      }
+    } catch {
+      // Neither spelling resolved; the report below covers what is still missing.
+    }
+  }
+
+  if (providerError && !stale.some((symbol) => quotes.has(symbol))) {
     const message =
-      error instanceof MarketDataError
-        ? error.message
+      providerError instanceof MarketDataError
+        ? providerError.message
         : "Unable to load market data.";
     // Cached values (if any) are still returned; the caller surfaces the message.
     return { quotes, errors: [message] };

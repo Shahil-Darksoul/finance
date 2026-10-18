@@ -7,6 +7,8 @@
  * strings, which keeps rounding behaviour consistent across the UI and exports.
  */
 
+import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
+
 export const MINOR_UNITS_PER_MAJOR = 100;
 
 /** Parse a user-typed dollar amount ("1,250.50", "$40", "-12") into cents. */
@@ -32,7 +34,7 @@ function getFormatter(currency: string, compact: boolean): Intl.NumberFormat {
   const key = `${currency}:${compact ? "compact" : "full"}`;
   let formatter = currencyFormatters.get(key);
   if (!formatter) {
-    formatter = new Intl.NumberFormat("en-US", {
+    formatter = new Intl.NumberFormat("en-CA", {
       style: "currency",
       currency,
       notation: compact ? "compact" : "standard",
@@ -62,7 +64,7 @@ export function formatMoney(
   options: FormatMoneyOptions = {},
 ): string {
   const {
-    currency = "USD",
+    currency = DEFAULT_CURRENCY,
     signed = false,
     compact = false,
     hideSymbol = false,
@@ -79,7 +81,7 @@ export function formatMoney(
     text = text.replace(/\.00$/, "");
   }
   if (hideSymbol) {
-    text = text.replace(currency === "USD" ? /^\$/ : /^[^\d\s-]+/, "");
+    text = text.replace(/^[^\d\s-]+/, "");
   }
 
   const prefix = negative ? "-" : signed ? "+" : "";
@@ -112,7 +114,7 @@ export function safeDivide(numerator: number, denominator: number): number {
 }
 
 /** Format a cents delta with an explicit sign for trend comparisons. */
-export function formatDelta(cents: number, currency = "USD"): string {
+export function formatDelta(cents: number, currency = DEFAULT_CURRENCY): string {
   return formatMoney(cents, { currency, signed: true });
 }
 
