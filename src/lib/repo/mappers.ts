@@ -8,6 +8,7 @@
 
 import type {
   Account,
+  AccountType,
   Bill,
   Category,
   EmiPayment,
@@ -161,6 +162,7 @@ export type TransactionRow = {
   created_at: string;
   account_name?: string | null;
   related_account_name?: string | null;
+  related_account_type?: string | null;
   category_name?: string | null;
   category_color?: string | null;
 };
@@ -199,6 +201,7 @@ export function toTransaction(row: TransactionRow): Transaction {
     accountName: strOrNull(row.account_name),
     relatedAccountId: strOrNull(row.related_account_id),
     relatedAccountName: strOrNull(row.related_account_name),
+    relatedAccountType: strOrNull(row.related_account_type) as AccountType | null,
     categoryId: strOrNull(row.category_id),
     categoryName: strOrNull(row.category_name),
     categoryColor: strOrNull(row.category_color),
@@ -274,6 +277,7 @@ export type BillRow = {
   user_id: string;
   name: string;
   kind: string;
+  investment_symbol: string | null;
   amount_cents: number;
   frequency: string;
   due_day: number;
@@ -301,7 +305,8 @@ export function toBill(row: BillRow): Bill {
     id: row.id,
     userId: row.user_id,
     name: row.name,
-    kind: row.kind === "emi" ? "emi" : "bill",
+    kind:
+      row.kind === "emi" ? "emi" : row.kind === "sip" ? "sip" : "bill",
     amountCents: int(row.amount_cents),
     frequency: row.frequency as Bill["frequency"],
     dueDay: int(row.due_day),
@@ -315,6 +320,7 @@ export function toBill(row: BillRow): Bill {
     priority: (row.priority as Bill["priority"]) ?? "normal",
     notes: strOrNull(row.notes),
     active: bool(row.active),
+    investmentSymbol: strOrNull(row.investment_symbol),
     principalCents: row.principal_cents === null ? null : int(row.principal_cents),
     annualRate: num(row.annual_rate),
     termMonths: row.term_months === null ? null : int(row.term_months),

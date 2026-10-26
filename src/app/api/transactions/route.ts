@@ -1,6 +1,10 @@
 import { z } from "zod";
-import { route, ok, parseBody } from "@/lib/api";
+import { route, ok, parseBody, ApiError } from "@/lib/api";
 import { createTransaction } from "@/lib/repo/transactions";
+import {
+  createTransfer,
+  TransferError,
+} from "@/lib/services/finance/transfers";
 import { TRANSACTION_TYPES } from "@/lib/types";
 
 const schema = z.object({
@@ -8,6 +12,7 @@ const schema = z.object({
   amountCents: z.number().int().positive("Enter an amount greater than zero."),
   date: z.string().min(1, "Pick a date."),
   accountId: z.string().min(1, "Choose an account."),
+  relatedAccountId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   description: z.string().trim().max(140).nullable().optional(),
   merchant: z.string().trim().max(80).nullable().optional(),
@@ -18,6 +23,40 @@ const schema = z.object({
 /** Records a single money movement against an account. */
 export const POST = route(async (request, user) => {
   const body = await parseBody(request, schema);
+
+  if (body.type === "transfer") {
+    if (!body.relatedAccountId) {
+      throw new ApiError(
+        "Choose the account the money is going to.",
+        400,
+        "bad_request",
+        { toAccountId: "Choose the account the money is going to." },
+      );
+    }
+
+    try {
+      const transaction = await createTransfer(user.id, {
+        amountCents: Math.abs(body.amountCents),
+        date: body.date,
+        fromAccountId: body.accountId,
+        toAccountId: body.relatedAccountId,
+        description: body.description ?? null,
+        notes: body.notes ?? null,
+        status: body.status ?? "cleared",
+      });
+      return ok({ transaction }, 201);
+    } catch (error) {
+      if (error instanceof TransferError) {
+        throw new ApiError(
+          error.message,
+          error.status,
+          "bad_request",
+          error.field ? { [error.field]: error.message } : undefined,
+        );
+      }
+      throw error;
+    }
+  }
 
   const transaction = await createTransaction(user.id, {
     type: body.type,

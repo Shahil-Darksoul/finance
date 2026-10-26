@@ -7,8 +7,13 @@ import { BILL_FREQUENCIES } from "@/lib/types";
 const schema = z
   .object({
     name: z.string().trim().min(1, "Give this a name."),
-    kind: z.enum(["bill", "emi"]).default("bill"),
+    kind: z.enum(["bill", "emi", "sip"]).default("bill"),
     amountCents: z.number().int().min(0).optional(),
+    /**
+     * What an investment plan buys. Free-form so it works for any market, not
+     * just the tickers this app has a price feed for.
+     */
+    investmentSymbol: z.string().trim().max(60).nullable().optional(),
     frequency: z.enum(BILL_FREQUENCIES).default("monthly"),
     dueDay: z.number().int().min(1).max(31),
     startDate: z.string().min(1, "Pick a start date."),
@@ -24,16 +29,29 @@ const schema = z
     termMonths: z.number().int().min(1).max(600).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.kind === "bill") {
+    if (value.kind === "bill" || value.kind === "sip") {
       if (!value.amountCents || value.amountCents <= 0) {
         ctx.addIssue({
           code: "custom",
           path: ["amountCents"],
-          message: "Enter the amount you pay each time.",
+          message:
+            value.kind === "sip"
+              ? "Enter the amount you invest each time."
+              : "Enter the amount you pay each time.",
+        });
+      }
+    }
+    if (value.kind === "sip") {
+      if (!value.investmentSymbol?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["investmentSymbol"],
+          message: "Name the stock, fund or plan you are investing in.",
         });
       }
       return;
     }
+    if (value.kind === "bill") return;
 
     // For a loan the instalment is derived, so these must be present instead.
     if (!value.principalCents || value.principalCents <= 0) {
@@ -88,6 +106,8 @@ export const POST = route(async (request, user) => {
   const bill = await createBill(user.id, {
     name: body.name,
     kind: body.kind,
+    investmentSymbol:
+      body.kind === "sip" ? body.investmentSymbol?.trim().toUpperCase() || null : null,
     amountCents,
     // A loan is repaid monthly by definition; the UI hides the frequency choice.
     frequency: body.kind === "emi" ? "monthly" : body.frequency,

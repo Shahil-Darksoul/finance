@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import type { CalendarEventInput } from "./calendar-view";
 
 /** Sources that represent a definition the user can edit from the calendar. */
-const EDITABLE = new Set(["bill", "emi", "payday"]);
+const EDITABLE = new Set(["bill", "emi", "sip", "payday"]);
 
 /** The entity id and date encoded in a `<source>-<id>-<date>` event id. */
 function parseOccurrenceId(event: CalendarEventInput): { id: string; date: string } {
@@ -73,6 +73,10 @@ export function EditAgendaItem({
     setAccountId(event.accountId ?? "");
     setError(null);
     setFields({});
+    // A save that succeeded leaves the dialog closed, so the pending flag has
+    // to be cleared here as well: otherwise the next open shows a spinner that
+    // never stops and the dialog cannot be dismissed.
+    setPending(false);
     setOpen(true);
   }
 
@@ -116,6 +120,7 @@ export function EditAgendaItem({
       }
       success("Updated", "The calendar has been refreshed.");
       setOpen(false);
+      setPending(false);
       router.refresh();
     } catch (caught) {
       setError(

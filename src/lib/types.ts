@@ -75,6 +75,16 @@ export const TRANSACTION_TYPE_META: Record<
   other: { label: "Other", verb: "recorded", cashImpact: "none", tone: "muted" },
 };
 
+/**
+ * Expense categories used when a transfer pays down a liability. Keeping the
+ * names here lets the transfer service and reports agree on which rows count
+ * as spending.
+ */
+export const DEBT_PAYMENT_CATEGORY_NAMES = {
+  loan: "Loan Payment",
+  credit_card: "Credit Card Payment",
+} as const;
+
 /** Categories seeded for every new account (per-user rows). */
 export const DEFAULT_CATEGORIES: {
   name: string;
@@ -95,6 +105,8 @@ export const DEFAULT_CATEGORIES: {
   { name: "Subscriptions", kind: "expense", color: "#eab308", icon: "Repeat" },
   { name: "Travel", kind: "expense", color: "#06b6d4", icon: "Plane" },
   { name: "Debt", kind: "expense", color: "#f43f5e", icon: "CreditCard" },
+  { name: "Loan Payment", kind: "expense", color: "#f43f5e", icon: "Landmark" },
+  { name: "Credit Card Payment", kind: "expense", color: "#f43f5e", icon: "CreditCard" },
   { name: "Savings", kind: "expense", color: "#10b981", icon: "PiggyBank" },
   { name: "Investing", kind: "expense", color: "#8b5cf6", icon: "LineChart" },
   { name: "Other", kind: "expense", color: "#94a3b8", icon: "Shapes" },
@@ -290,6 +302,8 @@ export type Transaction = {
   accountName?: string | null;
   relatedAccountId: string | null;
   relatedAccountName?: string | null;
+  /** Type of the transfer destination, when there is one. */
+  relatedAccountType?: AccountType | null;
   categoryId: string | null;
   categoryName?: string | null;
   categoryColor?: string | null;
@@ -333,11 +347,14 @@ export type RecurringTransaction = {
   createdAt: string;
 };
 
+export const BILL_KINDS = ["bill", "emi", "sip"] as const;
+export type BillKind = (typeof BILL_KINDS)[number];
+
 export type Bill = {
   id: string;
   userId: string;
   name: string;
-  kind: "bill" | "emi";
+  kind: BillKind;
   amountCents: number;
   frequency: BillFrequency;
   dueDay: number;
@@ -351,6 +368,12 @@ export type Bill = {
   priority: Priority;
   notes: string | null;
   active: boolean;
+  /**
+   * What an investment plan (kind `sip`) pays into. It is a free-form ticker or
+   * fund name because the plan covers markets this app has no price feed for;
+   * the amount is planned, not priced. Null for bills and loans.
+   */
+  investmentSymbol: string | null;
   principalCents: number | null;
   annualRate: number;
   termMonths: number | null;
@@ -578,7 +601,7 @@ export type FinancialSummary = {
 
 export type UpcomingObligation = {
   id: string;
-  source: "bill" | "emi" | "recurring" | "goal" | "investment";
+  source: "bill" | "emi" | "sip" | "recurring" | "goal" | "investment";
   name: string;
   dueDate: string;
   amountCents: number;
@@ -691,7 +714,7 @@ export type ForecastResult = {
 
 export type CalendarEvent = {
   id: string;
-  source: "payday" | "bill" | "emi" | "recurring" | "goal" | "investment" | "transaction";
+  source: "payday" | "bill" | "emi" | "sip" | "recurring" | "goal" | "investment" | "transaction";
   title: string;
   date: string;
   amountCents: number;

@@ -24,6 +24,7 @@ export const SOURCE_META: Record<
 > = {
   bill: { label: "Bill", tone: "warning", dot: "bg-warning", scheduled: true },
   emi: { label: "EMI", tone: "negative", dot: "bg-negative", scheduled: true },
+  sip: { label: "SIP / Investment plan", tone: "accent", dot: "bg-accent", scheduled: true },
   recurring: { label: "Subscription", tone: "info", dot: "bg-info", scheduled: true },
   payday: { label: "Payday", tone: "positive", dot: "bg-positive", scheduled: true },
   goal: { label: "Goal", tone: "primary", dot: "bg-primary", scheduled: true },
@@ -120,7 +121,7 @@ export default async function CalendarPage({
             <ul className="divide-y divide-border/50">
               {bills.map((bill) => {
                 const due = nextBillDate(bill);
-                const meta = SOURCE_META[bill.kind === "emi" ? "emi" : "bill"];
+                const meta = SOURCE_META[bill.kind === "emi" ? "emi" : bill.kind === "sip" ? "sip" : "bill"];
                 const oneTime = bill.endDate === bill.startDate;
                 return (
                   <li key={bill.id} className="flex items-center justify-between gap-3 py-2.5">

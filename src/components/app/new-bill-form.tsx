@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calculator, Info } from "lucide-react";
+import { ArrowLeft, Calculator, Info, TrendingUp } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field, Input, MoneyInput, Select, Switch, Textarea } from "@/components/ui/input";
@@ -19,10 +19,10 @@ export type NewBillFormProps = {
   categories: { id: string; name: string }[];
   currency: string;
   /** Pre-select a mode when arriving from a dedicated link. */
-  defaultKind?: "bill" | "emi";
+  defaultKind?: "bill" | "emi" | "sip";
 };
 
-type Kind = "bill" | "emi";
+type Kind = "bill" | "emi" | "sip";
 
 /**
  * Create form for both recurring bills and loan instalments.
@@ -51,6 +51,7 @@ export function NewBillForm({
   const [principalCents, setPrincipalCents] = React.useState(0);
   const [rate, setRate] = React.useState<string>("");
   const [termMonths, setTermMonths] = React.useState<string>("");
+  const [investmentSymbol, setInvestmentSymbol] = React.useState("");
   const [frequency, setFrequency] = React.useState<BillFrequency>("monthly");
   const [dueDay, setDueDay] = React.useState(String(dayOfMonth));
   const [startDate, setStartDate] = React.useState(today);
@@ -92,7 +93,8 @@ export function NewBillForm({
         json: {
           name,
           kind,
-          amountCents: kind === "bill" ? amountCents : undefined,
+          investmentSymbol: kind === "sip" ? investmentSymbol.trim().toUpperCase() || null : null,
+          amountCents: kind === "bill" || kind === "sip" ? amountCents : undefined,
           principalCents: kind === "emi" ? principalCents : undefined,
           annualRatePercent: kind === "emi" ? Number(rate) : undefined,
           termMonths: kind === "emi" ? Number(termMonths) : undefined,
@@ -106,8 +108,9 @@ export function NewBillForm({
           notes: notes.trim() || null,
         },
       });
+      // The push already renders the destination with fresh data; a refresh
+      // alongside it races the navigation and can leave this form on screen.
       router.push("/bills");
-      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setError(caught.message);
@@ -133,24 +136,27 @@ export function NewBillForm({
 
       <div>
         <h1 className="text-lg font-semibold">
-          {kind === "emi" ? "Add a loan or EMI" : "Add a bill"}
+          {kind === "emi" ? "Add a loan or EMI" : kind === "sip" ? "Add an investment plan / SIP" : "Add a bill"}
         </h1>
         <p className="text-xs text-muted-foreground">
           {kind === "emi"
             ? "Give the loan terms and the instalment schedule is worked out for you."
-            : "Anything that leaves your account on a schedule."}
+            : kind === "sip"
+              ? "Plan a regular investment into a stock or fund. It tracks the commitment in your schedule and obligations — it stays off the Investments portfolio list."
+              : "Anything that leaves your account on a schedule."}
         </p>
       </div>
 
       <div
         role="radiogroup"
         aria-label="What are you adding"
-        className="grid gap-2 sm:grid-cols-2"
+        className="grid gap-2 sm:grid-cols-3"
       >
         {(
           [
-            { value: "bill", label: "Bill or subscription", hint: "Fixed amount, repeats" },
-            { value: "emi", label: "Loan / EMI", hint: "Calculated from loan terms" },
+            { value: "bill", label: "Bill or subscription", hint: "Fixed amount, repeats", icon: null },
+            { value: "emi", label: "Loan / EMI", hint: "Calculated from loan terms", icon: null },
+            { value: "sip", label: "Investment / SIP", hint: "Plan to invest on a schedule", icon: <TrendingUp className="h-4 w-4" /> },
           ] as const
         ).map((option) => (
           <button
@@ -165,8 +171,13 @@ export function NewBillForm({
                 : "border-border bg-surface hover:border-border-strong"
             }`}
           >
-            <span className="block text-sm font-medium text-foreground">{option.label}</span>
-            <span className="block text-xs text-muted-foreground">{option.hint}</span>
+            <div className="flex items-start gap-2">
+              {option.icon ? <span className="mt-0.5 text-muted-foreground">{option.icon}</span> : null}
+              <div>
+                <span className="block text-sm font-medium text-foreground">{option.label}</span>
+                <span className="block text-xs text-muted-foreground">{option.hint}</span>
+              </div>
+            </div>
           </button>
         ))}
       </div>
@@ -189,13 +200,31 @@ export function NewBillForm({
             />
           </Field>
 
-          {kind === "bill" ? (
+          {kind === "bill" || kind === "sip" ? (
             <div className="grid gap-4 sm:grid-cols-2">
+              {kind === "sip" ? (
+                <Field
+                  label="Investment target"
+                  htmlFor="investmentSymbol"
+                  error={fields.investmentSymbol}
+                  hint="Stock, ETF, fund, index or plan name (e.g. NIFTYBEES, TATAMOTORS)."
+                  required
+                >
+                  <Input
+                    id="investmentSymbol"
+                    value={investmentSymbol}
+                    onChange={(event) => setInvestmentSymbol(event.target.value.toUpperCase())}
+                    placeholder="RELIANCE"
+                    autoComplete="off"
+                    invalid={Boolean(fields.investmentSymbol)}
+                  />
+                </Field>
+              ) : null}
               <Field
-                label="Amount"
+                label={kind === "sip" ? "Amount to invest" : "Amount"}
                 htmlFor="amount"
                 error={fields.amountCents}
-                hint="What you pay each time."
+                hint={kind === "sip" ? "How much you plan to invest each time." : "What you pay each time."}
                 required
               >
                 <MoneyInput id="amount" valueCents={amountCents} onValueChange={setAmountCents} />
@@ -387,19 +416,23 @@ export function NewBillForm({
 
       <div className="flex items-center gap-2">
         <Button type="submit" loading={pending}>
-          {kind === "emi" ? "Add loan" : "Add bill"}
+          {kind === "emi" ? "Add loan" : kind === "sip" ? "Add plan" : "Add bill"}
         </Button>
         <Link href="/bills" className={buttonClass({ variant: "ghost" })}>
           Cancel
         </Link>
-        <Badge tone="info" className="ml-auto">
+        <Badge tone={kind === "sip" ? "accent" : "info"} className="ml-auto">
           {kind === "emi"
             ? repeat
               ? `${preview?.totalPayments ?? "—"} instalments on your calendar`
               : "Single instalment, once"
-            : repeat
-              ? "Repeats on your calendar automatically"
-              : "Appears once, then stops"}
+            : kind === "sip"
+              ? repeat
+                ? "Planned investment on your calendar (not in Investments list)"
+                : "One-time plan, once"
+              : repeat
+                ? "Repeats on your calendar automatically"
+                : "Appears once, then stops"}
         </Badge>
       </div>
     </form>

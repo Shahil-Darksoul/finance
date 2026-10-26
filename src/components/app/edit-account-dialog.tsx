@@ -62,6 +62,10 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
     setNote(account.note ?? "");
     setError(null);
     setFields({});
+    // A save that succeeded leaves the dialog closed, so the pending flag has
+    // to be cleared here as well: otherwise the next open shows a spinner that
+    // never stops and the dialog cannot be dismissed.
+    setPending(false);
     setOpen(true);
   }
 
@@ -85,6 +89,7 @@ export function EditAccountDialog({ account }: { account: EditableAccount }) {
         },
       });
       setOpen(false);
+      setPending(false);
       success("Account updated", `${name.trim()} has been saved.`);
       router.refresh();
     } catch (caught) {

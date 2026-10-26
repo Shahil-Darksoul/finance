@@ -3,9 +3,15 @@ import { listBills } from "@/lib/repo/bills";
 import { listRecurring } from "@/lib/repo/recurring";
 import { listGoals } from "@/lib/repo/goals";
 import { listOccurrenceSkips } from "@/lib/repo/occurrence-skips";
-import type { Bill, RecurringTransaction, UpcomingObligation } from "@/lib/types";
+import type { Bill, CalendarEvent, RecurringTransaction, UpcomingObligation } from "@/lib/types";
 import { firstOccurrenceOnOrAfter, occurrencesInRange } from "./recurrence";
 import { fromISODate, startOfToday, toISODate } from "@/lib/utils/date";
+
+export function billSource(bill: Bill): CalendarEvent["source"] {
+  if (bill.kind === "emi") return "emi";
+  if (bill.kind === "sip") return "sip";
+  return "bill";
+}
 
 /**
  * Everything that is expected to leave an account between now and `until`.
@@ -80,8 +86,10 @@ export async function getUpcomingObligations(
       if (isSkipped("bill", bill.id, iso)) continue;
       results.push({
         id: bill.id,
-        source: bill.kind === "emi" ? "emi" : "bill",
-        name: bill.name,
+        source: billSource(bill) as UpcomingObligation["source"],
+        name: bill.kind === "sip" && bill.investmentSymbol
+          ? `${bill.name} (${bill.investmentSymbol})`
+          : bill.name,
         dueDate: iso,
         amountCents: bill.amountCents,
         accountId: bill.accountId,

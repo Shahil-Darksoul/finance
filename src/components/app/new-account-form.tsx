@@ -54,8 +54,9 @@ export function NewAccountForm({ currency: defaultCurrency }: NewAccountFormProp
           includeInNetWorth,
         },
       });
+      // The push already renders the destination with fresh data; a refresh
+      // alongside it races the navigation and can leave this form on screen.
       router.push("/accounts");
-      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setError(caught.message);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { route, ok, parseBody, ApiError } from "@/lib/api";
 import {
+  deleteBill,
   getBill,
   updateBill,
   listEmiPayments,
@@ -18,6 +19,7 @@ const schema = z.object({
   title: z.string().trim().min(1, "Give this a name.").max(120).optional(),
   amountCents: z.number().int().positive("Enter the amount.").optional(),
   date: z.string().min(1, "Pick a date.").optional(),
+  investmentSymbol: z.string().trim().max(60).nullable().optional(),
 });
 
 function dayOfMonth(value: string): number {
@@ -54,6 +56,18 @@ export const PATCH = route(async (request, user, context) => {
   if (body.title !== undefined) patch.name = body.title;
   if (bill.kind !== "emi" && body.amountCents !== undefined) {
     patch.amountCents = body.amountCents;
+  }
+  if (bill.kind === "sip" && body.investmentSymbol !== undefined) {
+    const symbol = body.investmentSymbol?.trim();
+    if (!symbol) {
+      throw new ApiError(
+        "Name the stock, fund or plan you are investing in.",
+        400,
+        "bad_request",
+        { investmentSymbol: "Name the stock, fund or plan you are investing in." },
+      );
+    }
+    patch.investmentSymbol = symbol.toUpperCase();
   }
 
   if (body.date !== undefined) {
@@ -109,4 +123,14 @@ export const PATCH = route(async (request, user, context) => {
   const updated = await updateBill(user.id, id, patch);
   if (!updated) throw ApiError.notFound("That payment no longer exists.");
   return ok({ bill: updated });
+});
+
+/** Removes a bill, loan or plan and its derived schedule. */
+export const DELETE = route(async (request, user, context) => {
+  const { id } = await (context as { params: Promise<{ id: string }> }).params;
+  const bill = await getBill(user.id, id);
+  if (!bill) throw ApiError.notFound("That bill no longer exists.");
+  const deleted = await deleteBill(user.id, id);
+  if (!deleted) throw ApiError.notFound("That bill no longer exists.");
+  return ok({ deleted: true });
 });

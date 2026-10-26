@@ -42,6 +42,10 @@ export function DeleteAccountButton({ account }: { account: DeletableAccount }) 
   function openDialog() {
     setNote("");
     setFieldError(null);
+    // A delete that succeeded leaves the dialog closed, so the pending flag
+    // has to be cleared here as well: otherwise the next open shows a spinner
+    // that never stops and the dialog cannot be dismissed.
+    setPending(false);
     setOpen(true);
   }
 
@@ -59,6 +63,7 @@ export function DeleteAccountButton({ account }: { account: DeletableAccount }) 
         json: { note: trimmed },
       });
       setOpen(false);
+      setPending(false);
       success("Account deleted", "The finalisation note was saved with the deletion record.");
       router.refresh();
     } catch (caught) {

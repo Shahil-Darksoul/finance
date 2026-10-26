@@ -44,8 +44,9 @@ export function NewGoalForm({ accounts }: NewGoalFormProps) {
           accountId: String(form.get("accountId") ?? "") || null,
         },
       });
+      // The push already renders the destination with fresh data; a refresh
+      // alongside it races the navigation and can leave this form on screen.
       router.push("/goals");
-      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setError(caught.message);

@@ -68,6 +68,10 @@ export function EditInvestmentDialog({
     setNotes(investment.notes ?? "");
     setError(null);
     setFields({});
+    // A save that succeeded leaves the dialog closed, so the pending flag has
+    // to be cleared here as well: otherwise the next open shows a spinner that
+    // never stops and the dialog cannot be dismissed.
+    setPending(false);
     setOpen(true);
   }
 
@@ -99,6 +103,7 @@ export function EditInvestmentDialog({
         },
       });
       setOpen(false);
+      setPending(false);
       success("Holding updated", `${symbol.toUpperCase()} has been saved.`);
       router.refresh();
     } catch (caught) {

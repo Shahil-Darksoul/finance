@@ -32,32 +32,60 @@ export class ApiClientError extends Error {
   }
 }
 
+/**
+ * How long a request may take before it is abandoned.
+ *
+ * Without a ceiling a stalled server leaves the caller's submit button
+ * spinning forever, with no way for the user to tell whether the save worked.
+ */
+export const DEFAULT_TIMEOUT_MS = 20_000;
+
 /** Client-side helper used by every form and fetch call. */
 export async function apiFetch<T>(
   input: string,
-  init: RequestInit & { json?: unknown } = {},
+  init: RequestInit & { json?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
-  const { json, ...rest } = init;
+  const { json, timeoutMs, signal: callerSignal, ...rest } = init;
   const headers = new Headers(rest.headers);
   if (json !== undefined) {
     headers.set("content-type", "application/json");
   }
   headers.set("accept", "application/json");
 
+  // The abort controller is wired up by hand rather than with
+  // `AbortSignal.timeout`, so the same code path works in every browser and
+  // lets a caller-supplied signal cancel the request early.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+
   let response: Response;
   try {
     response = await fetch(input, {
       ...rest,
+      signal: controller.signal,
       headers,
       body: json !== undefined ? JSON.stringify(json) : rest.body,
       cache: "no-store",
     });
   } catch {
+    if (controller.signal.aborted) {
+      throw new ApiClientError(
+        "That took longer than expected and was stopped. Check your connection and try again.",
+        0,
+        "timeout",
+      );
+    }
     throw new ApiClientError(
       "We couldn't reach the server. Check your connection and try again.",
       0,
       "network_error",
     );
+  } finally {
+    clearTimeout(timeout);
   }
 
   let payload: ApiSuccess<T> | ApiFailure | null = null;

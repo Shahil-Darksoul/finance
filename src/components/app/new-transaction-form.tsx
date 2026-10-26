@@ -20,10 +20,21 @@ import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { toISODate } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
-import { TRANSACTION_TYPE_META, type TransactionType } from "@/lib/types";
+import {
+  ACCOUNT_TYPE_META,
+  DEBT_PAYMENT_CATEGORY_NAMES,
+  TRANSACTION_TYPE_META,
+  type AccountType,
+  type TransactionType,
+} from "@/lib/types";
 
 export type NewTransactionFormProps = {
-  accounts: { id: string; name: string; type: string }[];
+  accounts: {
+    id: string;
+    name: string;
+    type: AccountType;
+    currentBalanceCents: number;
+  }[];
   categories: { id: string; name: string }[];
 };
 
@@ -41,7 +52,7 @@ const TYPES: TypeOption[] = [
   { value: "refund", hint: "Money returned to you", amountHint: "How much came back.", icon: RotateCcw },
   { value: "lending", hint: "Money you gave someone", amountHint: "How much you gave.", icon: HandCoins },
   { value: "investment", hint: "Money invested into assets", amountHint: "How much you invested.", icon: LineChart },
-  { value: "transfer", hint: "Moved between your accounts", amountHint: "How much is moving.", icon: ArrowLeftRight },
+  { value: "transfer", hint: "Moves money between two accounts you pick", amountHint: "How much is moving.", icon: ArrowLeftRight },
 ];
 
 /** Rendering details for every tone used by the type picker. */
@@ -130,7 +141,7 @@ const TYPE_STYLES: Record<
 const CASH_COPY: Record<"in" | "out" | "none", string> = {
   out: "Leaves the account you pick below.",
   in: "Arrives in the account you pick below.",
-  none: "Moves between your own accounts — totals stay the same.",
+  none: "Moves between your own accounts — regular transfers stay out of totals.",
 };
 
 /** Create form for a single transaction. */
@@ -142,6 +153,8 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
 
   const [type, setType] = React.useState<TransactionType>("expense");
   const [amountCents, setAmountCents] = React.useState(0);
+  const [accountId, setAccountId] = React.useState("");
+  const [relatedAccountId, setRelatedAccountId] = React.useState("");
 
   const optionRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -149,6 +162,40 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
   const style = TYPE_STYLES[meta.tone] ?? TYPE_STYLES.muted;
   const selected = TYPES.find((option) => option.value === type) ?? TYPES[0];
   const SelectedIcon = selected.icon;
+
+  const isTransfer = type === "transfer";
+  const sourceAccount = accounts.find((account) => account.id === accountId);
+  const destinationAccount = accounts.find(
+    (account) => account.id === relatedAccountId,
+  );
+  // A transfer is always between two different accounts, so each picker hides
+  // the account already chosen on the other side.
+  const sourceOptions = React.useMemo(
+    () => accounts.filter((account) => account.id !== relatedAccountId),
+    [accounts, relatedAccountId],
+  );
+  const destinationOptions = React.useMemo(
+    () => accounts.filter((account) => account.id !== accountId),
+    [accounts, accountId],
+  );
+  const destinationIsLiability = destinationAccount
+    ? ACCOUNT_TYPE_META[destinationAccount.type].kind === "liability"
+    : false;
+  const debtPaymentCategory = destinationAccount
+    ? destinationAccount.type === "credit_card"
+      ? DEBT_PAYMENT_CATEGORY_NAMES.credit_card
+      : destinationAccount.type === "loan"
+        ? DEBT_PAYMENT_CATEGORY_NAMES.loan
+        : null
+    : null;
+  const sourceIsAsset = sourceAccount
+    ? ACCOUNT_TYPE_META[sourceAccount.type].kind === "asset"
+    : false;
+  const insufficientFunds =
+    isTransfer &&
+    sourceIsAsset &&
+    sourceAccount !== undefined &&
+    amountCents > sourceAccount.currentBalanceCents;
 
   function selectType(next: TransactionType) {
     setType(next);
@@ -184,7 +231,12 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
     optionRefs.current[next]?.focus();
   }
 
-  const sign = meta.cashImpact === "out" ? "−" : meta.cashImpact === "in" ? "+" : "";
+  const sign =
+    meta.cashImpact === "out" || (isTransfer && destinationIsLiability)
+      ? "−"
+      : meta.cashImpact === "in"
+        ? "+"
+        : "";
   const preview = amountCents > 0 ? `${sign}${formatMoney(amountCents)}` : "—";
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -192,6 +244,20 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
     setPending(true);
     setError(null);
     setFields({});
+
+    if (isTransfer) {
+      const nextFields: Record<string, string> = {};
+      if (!accountId) nextFields.accountId = "Choose the account to transfer from.";
+      if (!relatedAccountId)
+        nextFields.toAccountId = "Choose the account to transfer to.";
+      else if (relatedAccountId === accountId)
+        nextFields.toAccountId = "Choose two different accounts.";
+      if (Object.keys(nextFields).length > 0) {
+        setFields(nextFields);
+        setPending(false);
+        return;
+      }
+    }
 
     const form = new FormData(event.currentTarget);
 
@@ -202,15 +268,19 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
           type,
           amountCents,
           date: String(form.get("date") ?? ""),
-          accountId: String(form.get("accountId") ?? ""),
-          categoryId: String(form.get("categoryId") ?? "") || null,
+          accountId: isTransfer ? accountId : String(form.get("accountId") ?? ""),
+          relatedAccountId: isTransfer ? relatedAccountId : null,
+          categoryId: isTransfer
+            ? null
+            : String(form.get("categoryId") ?? "") || null,
           description: String(form.get("description") ?? "").trim() || null,
           merchant: String(form.get("merchant") ?? "").trim() || null,
           notes: String(form.get("notes") ?? "").trim() || null,
         },
       });
+      // The push already renders the destination with fresh data; a refresh
+      // alongside it races the navigation and can leave this form on screen.
       router.push("/transactions");
-      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setError(caught.message);
@@ -350,7 +420,12 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
               hint={selected.amountHint}
               required
             >
-              <MoneyInput id="amount" valueCents={amountCents} onValueChange={setAmountCents} />
+              <MoneyInput
+                id="amount"
+                valueCents={amountCents}
+                onValueChange={setAmountCents}
+                aria-invalid={Boolean(fields.amountCents) || insufficientFunds || undefined}
+              />
             </Field>
             <Field label="Date" htmlFor="date" error={fields.date} required>
               <Input
@@ -364,27 +439,99 @@ export function NewTransactionForm({ accounts, categories }: NewTransactionFormP
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Account" htmlFor="accountId" error={fields.accountId} required>
-              <Select id="accountId" name="accountId" defaultValue="" invalid={Boolean(fields.accountId)}>
+            <Field
+              label={isTransfer ? "From account" : "Account"}
+              htmlFor="accountId"
+              error={fields.accountId}
+              hint={
+                isTransfer && sourceAccount
+                  ? `Available: ${formatMoney(sourceAccount.currentBalanceCents)}`
+                  : undefined
+              }
+              required
+            >
+              <Select
+                id="accountId"
+                name="accountId"
+                value={accountId}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setAccountId(next);
+                  if (next && next === relatedAccountId) setRelatedAccountId("");
+                }}
+                disabled={isTransfer && accounts.length < 2}
+                invalid={Boolean(fields.accountId)}
+              >
                 <option value="">Choose an account</option>
-                {accounts.map((account) => (
+                {(isTransfer ? sourceOptions : accounts).map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Category" htmlFor="categoryId" hint="Optional.">
-              <Select id="categoryId" name="categoryId" defaultValue="">
-                <option value="">Not specified</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            {isTransfer ? (
+              <Field
+                label="To account"
+                htmlFor="relatedAccountId"
+                error={fields.toAccountId}
+                required
+              >
+                <Select
+                  id="relatedAccountId"
+                  name="relatedAccountId"
+                  value={relatedAccountId}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setRelatedAccountId(next);
+                    if (next && next === accountId) setAccountId("");
+                  }}
+                  disabled={accounts.length < 2}
+                  invalid={Boolean(fields.toAccountId)}
+                >
+                  <option value="">Choose an account</option>
+                  {destinationOptions.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : (
+              <Field label="Category" htmlFor="categoryId" hint="Optional.">
+                <Select id="categoryId" name="categoryId" defaultValue="">
+                  <option value="">Not specified</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
           </div>
+
+          {isTransfer ? (
+            <div className="space-y-2 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+              {accounts.length < 2 ? (
+                <p role="alert" className="font-medium text-negative">
+                  Add a second account before transferring money between accounts.
+                </p>
+              ) : null}
+              <p>
+                {destinationIsLiability && debtPaymentCategory
+                  ? `This payment reduces the ${destinationAccount?.name ?? "debt"} balance and is recorded as an expense under "${debtPaymentCategory}".`
+                  : "Money leaves the source account and arrives in the destination account only. Moving it between your own asset accounts is not spending, so it stays out of income and expense totals."}
+              </p>
+              {insufficientFunds && sourceAccount ? (
+                <p role="alert" className="font-medium text-negative">
+                  {sourceAccount.name} only has{" "}
+                  {formatMoney(sourceAccount.currentBalanceCents)} available. Lower the
+                  amount or choose another source account.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <Field label="Description" htmlFor="description" hint="Optional.">
             <Input id="description" name="description" placeholder="Groceries" />

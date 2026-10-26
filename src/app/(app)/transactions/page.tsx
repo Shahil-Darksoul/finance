@@ -6,10 +6,15 @@ import { Card, CardBody, CardHeader, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteTransactionButton } from "@/components/app/delete-transaction-button";
 import { formatMoney } from "@/lib/utils/money";
+import { DEBT_PAYMENT_CATEGORY_NAMES } from "@/lib/types";
 import { Receipt, Plus } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+const DEBT_PAYMENT_CATEGORY_NAME_SET = new Set<string>(
+  Object.values(DEBT_PAYMENT_CATEGORY_NAMES),
+);
 
 export default async function TransactionsPage() {
   const user = await requireUser();
@@ -73,17 +78,31 @@ export default async function TransactionsPage() {
                   {transactions.map(t => {
                     const account = t.accountId ? accountMap.get(t.accountId) : null;
                     const category = t.categoryId ? categoryMap.get(t.categoryId) : null;
-                    const isExpense = t.type === 'expense' || t.type === 'lending';
+                    // A transfer that pays down a card or loan is spending even
+                    // though it is stored as a transfer, so it reads as a
+                    // negative amount here and in the reports.
+                    const isDebtPayment =
+                      t.type === 'transfer' &&
+                      (t.relatedAccountType === 'credit_card' ||
+                        t.relatedAccountType === 'loan' ||
+                        (category ? DEBT_PAYMENT_CATEGORY_NAME_SET.has(category.name) : false));
+                    const isExpense = t.type === 'expense' || t.type === 'lending' || isDebtPayment;
                     const isIncome = t.type === 'income';
-                    const displayCents = t.type === 'transfer' ? t.amountCents : t.cashImpactCents;
+                    const displayCents = t.type === 'transfer' && !isDebtPayment ? t.amountCents : t.cashImpactCents;
                     return (
                       <tr key={t.id} className="border-b border-border/50">
                         <td className="py-2">{new Date(t.date + 'T00:00:00').toLocaleDateString()}</td>
                         <td className="py-2 font-medium">{t.description || t.merchant || '—'}</td>
                         <td className="py-2 text-muted-foreground">{category?.name || '—'}</td>
-                        <td className="py-2 text-muted-foreground">{account?.name || '—'}</td>
+                        <td className="py-2 text-muted-foreground">
+                          {t.type === 'transfer' && t.relatedAccountName
+                            ? `${account?.name ?? '—'} → ${t.relatedAccountName}`
+                            : account?.name || '—'}
+                        </td>
                         <td className={`py-2 text-right tabular-nums ${isExpense ? 'text-negative' : isIncome ? 'text-positive' : ''}`}>
-                          {money(displayCents, { signed: t.type !== 'transfer' && t.amountCents !== 0 })}
+                          {money(displayCents, {
+                            signed: (t.type !== 'transfer' || isDebtPayment) && t.amountCents !== 0,
+                          })}
                         </td>
                         <td className="py-2 text-right">
                           <DeleteTransactionButton

@@ -43,6 +43,8 @@ const ASSET_TYPE_LABELS: Record<AssetType, string> = {
 export function NewInvestmentForm({ accounts }: NewInvestmentFormProps) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [slowNavigation, setSlowNavigation] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [fields, setFields] = React.useState<Record<string, string>>({});
 
@@ -81,6 +83,15 @@ export function NewInvestmentForm({ accounts }: NewInvestmentFormProps) {
   const positionValue =
     Number.isFinite(quantity) && quantity > 0 ? Math.round(quantity * costCents) : null;
 
+  // The holding is written before the portfolio is priced, so the redirect can
+  // take a moment. Offer a way forward instead of leaving the user on a
+  // button that looks stuck.
+  React.useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSlowNavigation(true), 4000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -103,8 +114,11 @@ export function NewInvestmentForm({ accounts }: NewInvestmentFormProps) {
           notes: String(form.get("notes") ?? "").trim() || null,
         },
       });
+      // The push already renders the destination with fresh data. A refresh
+      // alongside it races the navigation and can leave this form on screen.
+      setSaved(true);
+      setPending(false);
       router.push("/investments");
-      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setError(caught.message);
@@ -251,8 +265,8 @@ export function NewInvestmentForm({ accounts }: NewInvestmentFormProps) {
       </Card>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" loading={pending}>
-          Add holding
+        <Button type="submit" loading={pending} disabled={saved}>
+          {saved ? "Saved" : "Add holding"}
         </Button>
         <Link href="/investments" className={buttonClass({ variant: "ghost" })}>
           Cancel
@@ -263,6 +277,16 @@ export function NewInvestmentForm({ accounts }: NewInvestmentFormProps) {
           </span>
         ) : null}
       </div>
+
+      {slowNavigation ? (
+        <p className="text-xs text-muted-foreground">
+          Saved. Pricing your portfolio can take a moment —{" "}
+          <Link href="/investments" className="underline underline-offset-2">
+            open your investments
+          </Link>{" "}
+          to continue.
+        </p>
+      ) : null}
     </form>
   );
 }

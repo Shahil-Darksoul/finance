@@ -24,7 +24,7 @@ export default async function NewBillPage({
         accounts={accounts.map((account) => ({ id: account.id, name: account.name }))}
         categories={categories.map((category) => ({ id: category.id, name: category.name }))}
         currency={user.currency}
-        defaultKind={kind === "emi" ? "emi" : "bill"}
+        defaultKind={kind === "emi" ? "emi" : kind === "sip" ? "sip" : "bill"}
       />
     </div>
   );

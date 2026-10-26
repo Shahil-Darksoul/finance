@@ -19,6 +19,7 @@ export default async function NewTransactionPage() {
           id: account.id,
           name: account.name,
           type: account.type,
+          currentBalanceCents: account.currentBalanceCents,
         }))}
         categories={categories.map((category) => ({ id: category.id, name: category.name }))}
       />

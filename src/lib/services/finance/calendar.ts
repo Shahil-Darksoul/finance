@@ -6,7 +6,7 @@ import { listTransactions } from "@/lib/repo/transactions";
 import { listInvestments } from "@/lib/repo/investments";
 import { listOccurrenceSkips } from "@/lib/repo/occurrence-skips";
 import { getPaydayOccurrences } from "./payday";
-import { billRule, recurringRule } from "./obligations";
+import { billRule, billSource, recurringRule } from "./obligations";
 import { occurrencesInRange } from "./recurrence";
 import { toISODate } from "@/lib/utils/date";
 import type { CalendarEvent } from "@/lib/types";
@@ -18,6 +18,7 @@ const SOURCE_TONE: Record<CalendarEvent["source"], string> = {
   emi: "var(--negative)",
   recurring: "var(--info)",
   goal: "var(--primary)",
+  sip: "var(--accent)",
   investment: "var(--accent)",
   transaction: "var(--muted-foreground)",
 };
@@ -97,18 +98,23 @@ export async function getCalendarEvents(
       // No schedule stored yet: fall through to the recurring rule.
     }
 
+    const source = billSource(bill);
     for (const date of occurrencesInRange(billRule(bill), from, to, 24)) {
       const iso = toISODate(date);
       if (isSkipped("bill", bill.id, iso)) continue;
       events.push({
         id: `bill-${bill.id}-${iso}`,
-        source: bill.kind === "emi" ? "emi" : "bill",
-        title: bill.name,
+        source,
+        // The plan's target is part of its identity on the calendar, so it
+        // reads as an investment contribution rather than a generic bill.
+        title: bill.kind === "sip" && bill.investmentSymbol
+          ? `${bill.name} (${bill.investmentSymbol})`
+          : bill.name,
         date: iso,
         amountCents: -bill.amountCents,
         recurring: bill.startDate !== bill.endDate,
         accountId: bill.accountId,
-        color: SOURCE_TONE[bill.kind === "emi" ? "emi" : "bill"],
+        color: SOURCE_TONE[source],
       });
     }
   }

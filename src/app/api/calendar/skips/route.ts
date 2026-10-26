@@ -10,6 +10,7 @@ import { getPayday } from "@/lib/repo/paydays";
 import { getGoal } from "@/lib/repo/goals";
 
 const schema = z.object({
+  // `bill` covers bills, EMIs and SIP plans (all stored in the bills table).
   source: z.enum(["bill", "recurring", "payday", "goal"]),
   id: z.string().trim().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date."),

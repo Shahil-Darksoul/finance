@@ -13,7 +13,7 @@ import { DeleteTransactionButton, type DeletableTransaction } from "./delete-tra
 import type { CalendarEventInput } from "./calendar-view";
 
 /** Event sources whose single occurrence can be hidden without deleting the rule. */
-const SKIPPABLE = new Set(["bill", "emi", "recurring", "payday", "goal"]);
+const SKIPPABLE = new Set(["bill", "emi", "sip", "recurring", "payday", "goal"]);
 
 const MIN_NOTE_LENGTH = 3;
 
@@ -71,7 +71,10 @@ export function DeleteAgendaItem({
   if (!SKIPPABLE.has(event.source)) return null;
 
   const { id, date } = parseOccurrenceId(event);
-  const source = event.source === "emi" ? "bill" : event.source;
+  // Bills, EMIs and SIP plans are all stored in the bills table, so the skip
+  // endpoint receives `bill` for each of them.
+  const source =
+    event.source === "emi" || event.source === "sip" ? "bill" : event.source;
 
   async function confirmDelete() {
     const trimmed = note.trim();
@@ -88,6 +91,7 @@ export function DeleteAgendaItem({
         json: { source, id, date, note: trimmed },
       });
       setOpen(false);
+      setPending(false);
       success("Entry removed", "This one date was removed. It still repeats on other dates.");
       router.refresh();
     } catch (caught) {
@@ -107,6 +111,10 @@ export function DeleteAgendaItem({
           setNote("");
           setFieldError(null);
           setError(null);
+          // A delete that succeeded leaves the dialog closed, so the pending
+          // flag has to be cleared here as well: otherwise the next open shows
+          // a spinner that never stops and the dialog cannot be dismissed.
+          setPending(false);
           setOpen(true);
         }}
         aria-label={`Remove ${event.title} on ${formatDay(date)}`}

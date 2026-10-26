@@ -31,6 +31,38 @@ export async function findCategoryByName(
   return row ? toCategory(row) : null;
 }
 
+/**
+ * Returns the named category, creating it when the user predates the category
+ * (for example an existing account that has never paid a loan before).
+ */
+export async function ensureCategoryByName(input: {
+  userId: string;
+  name: string;
+  kind: "expense" | "income";
+  color?: string | null;
+  icon?: string | null;
+}): Promise<Category> {
+  const existing = await findCategoryByName(input.userId, input.name, input.kind);
+  if (existing) return existing;
+
+  try {
+    return await createCategory({
+      userId: input.userId,
+      name: input.name,
+      kind: input.kind,
+      color: input.color,
+      icon: input.icon,
+      isSystem: true,
+    });
+  } catch (error) {
+    // A concurrent request may have inserted it between the lookup and the
+    // insert. Prefer the row that won over failing the whole transfer.
+    const raced = await findCategoryByName(input.userId, input.name, input.kind);
+    if (raced) return raced;
+    throw error;
+  }
+}
+
 export async function createCategory(input: {
   userId: string;
   name: string;

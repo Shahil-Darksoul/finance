@@ -32,6 +32,7 @@ type SourceStyle = { label: string; dot: string; scheduled: boolean };
 const SOURCE_STYLES: Record<string, SourceStyle> = {
   bill: { label: "Bill", dot: "bg-warning", scheduled: true },
   emi: { label: "EMI", dot: "bg-negative", scheduled: true },
+  sip: { label: "SIP / Investment plan", dot: "bg-accent", scheduled: true },
   recurring: { label: "Subscription", dot: "bg-info", scheduled: true },
   payday: { label: "Payday", dot: "bg-positive", scheduled: true },
   goal: { label: "Goal", dot: "bg-primary", scheduled: true },

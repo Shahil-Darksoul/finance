@@ -7,6 +7,7 @@ const SELECT_WITH_RELATIONS = `
   SELECT t.*,
          a.name AS account_name,
          ra.name AS related_account_name,
+         ra.type AS related_account_type,
          c.name AS category_name,
          c.color AS category_color
     FROM transactions t
@@ -367,12 +368,21 @@ export type MonthlyTotals = {
   refundCents: number;
 };
 
+/** A transfer whose destination is a loan or credit card pays down debt. */
+const DEBT_PAYMENT_SQL = `(
+  t.type = 'transfer'
+  AND ra.type IN ('credit_card', 'loan')
+)`;
+
 /**
  * Income and expense totals per calendar month.
  *
- * Transfers are intentionally excluded so moving money between accounts can
- * never be mistaken for earning or spending. `investment` is tracked separately
- * from `expense` because buying a stock moves cash without consuming it.
+ * Transfers between asset accounts are excluded so moving money between them
+ * can never be mistaken for earning or spending. A transfer to a loan or
+ * credit card is different: cash leaves the household to reduce a debt, so its
+ * single row is counted as an expense (never as both sides). `investment` is
+ * tracked separately from `expense` because buying a stock moves cash without
+ * consuming it.
  */
 export async function getMonthlyTotals(
   userId: string,
@@ -388,15 +398,17 @@ export async function getMonthlyTotals(
     refund_cents: number;
   }>(
     `SELECT
-        SUBSTR(date, 1, 7) AS month,
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents,
-        COALESCE(SUM(CASE WHEN type = 'investment' THEN amount_cents ELSE 0 END), 0) AS investment_cents,
-        COALESCE(SUM(CASE WHEN type = 'refund' THEN amount_cents ELSE 0 END), 0) AS refund_cents
-       FROM transactions
-      WHERE user_id = ? AND date >= ? AND date <= ?
-        AND type <> 'transfer'
-      GROUP BY SUBSTR(date, 1, 7)
+        SUBSTR(t.date, 1, 7) AS month,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount_cents ELSE 0 END), 0) AS income_cents,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' OR ${DEBT_PAYMENT_SQL}
+                          THEN t.amount_cents ELSE 0 END), 0) AS expense_cents,
+        COALESCE(SUM(CASE WHEN t.type = 'investment' THEN t.amount_cents ELSE 0 END), 0) AS investment_cents,
+        COALESCE(SUM(CASE WHEN t.type = 'refund' THEN t.amount_cents ELSE 0 END), 0) AS refund_cents
+       FROM transactions t
+       LEFT JOIN accounts ra ON ra.id = t.related_account_id
+      WHERE t.user_id = ? AND t.date >= ? AND t.date <= ?
+        AND (t.type <> 'transfer' OR ${DEBT_PAYMENT_SQL})
+      GROUP BY SUBSTR(t.date, 1, 7)
       ORDER BY month ASC`,
     [userId, fromMonth, toMonth],
   );
@@ -517,6 +529,15 @@ export async function getCategoryBreakdown(
   limit = 12,
 ): Promise<CategoryBreakdown[]> {
   const db = await getDb();
+  // Debt payments are stored as transfers so the destination balance can move
+  // too, but they belong in the expense breakdown alongside ordinary expenses.
+  const typeClause =
+    kind === "expense"
+      ? `(t.type = 'expense' OR ${DEBT_PAYMENT_SQL})`
+      : `t.type = ?`;
+  const params =
+    kind === "expense" ? [userId, from, to] : [userId, from, to, kind];
+
   const rows = await db.all<{
     category_id: string | null;
     category_name: string | null;
@@ -530,13 +551,14 @@ export async function getCategoryBreakdown(
             SUM(t.amount_cents) AS total,
             COUNT(*) AS cnt
        FROM transactions t
+       LEFT JOIN accounts ra ON ra.id = t.related_account_id
        LEFT JOIN categories c ON c.id = t.category_id
       WHERE t.user_id = ?
         AND t.date >= ? AND t.date <= ?
-        AND t.type = ?
-      GROUP BY t.category_id, category_name, color
+        AND ${typeClause}
+      GROUP BY t.category_id, category_name, c.color
       ORDER BY total DESC`,
-    [userId, from, to, kind],
+    params,
   );
 
   const total = rows.reduce((sum, row) => sum + Number(row.total), 0);
@@ -564,12 +586,15 @@ export async function getRangeTotals(
     refund_cents: number;
   }>(
     `SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents,
-        COALESCE(SUM(CASE WHEN type = 'investment' THEN amount_cents ELSE 0 END), 0) AS investment_cents,
-        COALESCE(SUM(CASE WHEN type = 'refund' THEN amount_cents ELSE 0 END), 0) AS refund_cents
-       FROM transactions
-      WHERE user_id = ? AND date >= ? AND date <= ? AND type <> 'transfer'`,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount_cents ELSE 0 END), 0) AS income_cents,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' OR ${DEBT_PAYMENT_SQL}
+                          THEN t.amount_cents ELSE 0 END), 0) AS expense_cents,
+        COALESCE(SUM(CASE WHEN t.type = 'investment' THEN t.amount_cents ELSE 0 END), 0) AS investment_cents,
+        COALESCE(SUM(CASE WHEN t.type = 'refund' THEN t.amount_cents ELSE 0 END), 0) AS refund_cents
+       FROM transactions t
+       LEFT JOIN accounts ra ON ra.id = t.related_account_id
+      WHERE t.user_id = ? AND t.date >= ? AND t.date <= ?
+        AND (t.type <> 'transfer' OR ${DEBT_PAYMENT_SQL})`,
     [userId, from, to],
   );
   return {
@@ -588,7 +613,9 @@ export async function getLargestExpense(
   const db = await getDb();
   const row = await db.get<TransactionRow>(
     `${SELECT_WITH_RELATIONS}
-      WHERE t.user_id = ? AND t.type = 'expense' AND t.date >= ? AND t.date <= ?
+      WHERE t.user_id = ?
+        AND (t.type = 'expense' OR ${DEBT_PAYMENT_SQL})
+        AND t.date >= ? AND t.date <= ?
       ORDER BY t.amount_cents DESC LIMIT 1`,
     [userId, from, to],
   );

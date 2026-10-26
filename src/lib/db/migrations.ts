@@ -510,4 +510,14 @@ export const migrations: Migration[] = [
       `UPDATE account_deletions SET currency = 'CAD' WHERE currency <> 'CAD'`,
     ],
   },
+  {
+    id: "0013_bill_investment_symbol",
+    statements: [
+      // An investment plan (kind `sip`) names what the contributions go into.
+      // It is deliberately not a foreign key to `investments`: the plan may
+      // target a fund or market this app cannot price, and it is a commitment,
+      // not a holding.
+      `ALTER TABLE bills ADD COLUMN investment_symbol TEXT`,
+    ],
+  },
 ];

@@ -39,8 +39,9 @@ export function NewCategoryForm() {
           color,
         },
       });
+      // The push already renders the destination with fresh data; a refresh
+      // alongside it races the navigation and can leave this form on screen.
       router.push("/categories");
-      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setError(caught.message);

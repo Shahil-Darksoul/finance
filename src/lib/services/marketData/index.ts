@@ -36,6 +36,32 @@ const QUOTE_TTL_MS = 60_000;
 const HISTORY_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Hard ceiling on one quote round-trip.
+ *
+ * Prices come from a third party, so the request can hang or be slow. The
+ * pages that show a portfolio must not inherit that latency: after this
+ * budget the page renders with the prices it already has (or with cost basis)
+ * and reports the gap, rather than holding the whole request open.
+ */
+const QUOTE_DEADLINE_MS = 5_000;
+
+/** Message used for the timeout, so the breaker below can recognise it. */
+const DEADLINE_MESSAGE = "Market data took too long to load.";
+
+/**
+ * How long a provider that just missed the deadline is left alone.
+ *
+ * A page can ask for prices more than once while it renders (the dashboard
+ * summarises the portfolio, then builds insights from it). Paying the full
+ * deadline twice would double the wait, so the provider is skipped for a
+ * moment and the prices already in the cache are used instead.
+ */
+const SLOW_PROVIDER_COOLDOWN_MS = 30_000;
+
+/** Set while the active provider is known to be too slow to answer. */
+let slowProviderUntil = 0;
+
 function env(key: string): string | undefined {
   const value = process.env[key];
   return value && value.trim() ? value.trim() : undefined;
@@ -142,6 +168,57 @@ async function withRetry<T>(
 
   if (lastError instanceof MarketDataError) throw lastError;
   throw new MarketDataError("Market data is unavailable right now.", { provider });
+}
+
+/* --------------------------------------------------------------- deadline */
+
+/**
+ * Runs `operation` but gives up after `ms`.
+ *
+ * The provider request is not cancelled — it finishes in the background and
+ * its result is simply dropped — but the caller stops waiting, so a slow
+ * exchange feed can never hold a page render open.
+ */
+function withinDeadline<T>(
+  operation: Promise<T>,
+  ms: number,
+  provider: string,
+): Promise<T> {
+  if (ms <= 0) {
+    // Swallow the rejection so an abandoned request never surfaces as an
+    // unhandled rejection.
+    operation.catch(() => undefined);
+    return Promise.reject(
+      new MarketDataError(DEADLINE_MESSAGE, {
+        status: 504,
+        provider,
+        retryable: false,
+      }),
+    );
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new MarketDataError(DEADLINE_MESSAGE, {
+          status: 504,
+          provider,
+          retryable: false,
+        }),
+      );
+    }, ms);
+
+    operation.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 /* ----------------------------------------------------------------- cache */
@@ -274,15 +351,36 @@ export async function getQuotes(
     await writeCachedQuote(keyed);
   };
 
+  // One shared budget for the whole round-trip, so the page is never held
+  // open by a slow exchange feed no matter how many retries happen.
+  const deadline = Date.now() + QUOTE_DEADLINE_MS;
+  const remaining = () => deadline - Date.now();
+
   let providerError: unknown = null;
-  try {
-    const fetched = await withRetry(
-      () => provider.getQuotes(stale),
-      provider.name,
-    );
-    for (const [symbol, quote] of fetched) await store(symbol.toUpperCase(), quote);
-  } catch (error) {
-    providerError = error;
+  if (Date.now() < slowProviderUntil) {
+    // The provider already missed its deadline for this render, so the rest of
+    // the page is served from the cache instead of waiting again.
+    providerError = new MarketDataError(DEADLINE_MESSAGE, {
+      status: 504,
+      provider: provider.name,
+      retryable: false,
+    });
+  } else {
+    try {
+      const fetched = await withRetry(
+        () => withinDeadline(provider.getQuotes(stale), remaining(), provider.name),
+        provider.name,
+      );
+      for (const [symbol, quote] of fetched) await store(symbol.toUpperCase(), quote);
+    } catch (error) {
+      providerError = error;
+      if (
+        error instanceof MarketDataError &&
+        error.message === DEADLINE_MESSAGE
+      ) {
+        slowProviderUntil = Date.now() + SLOW_PROVIDER_COOLDOWN_MS;
+      }
+    }
   }
 
   // TSX fallback: a Canadian listing does not resolve under its bare ticker,
@@ -294,10 +392,15 @@ export async function getQuotes(
     const candidate = tsxLookupSymbol(symbol);
     if (candidate) tsxCandidates.set(candidate, symbol);
   }
-  if (tsxCandidates.size > 0) {
+  if (tsxCandidates.size > 0 && remaining() > 0 && !providerError) {
     try {
       const fetched = await withRetry(
-        () => provider.getQuotes([...tsxCandidates.keys()]),
+        () =>
+          withinDeadline(
+            provider.getQuotes([...tsxCandidates.keys()]),
+            remaining(),
+            provider.name,
+          ),
         provider.name,
       );
       for (const [candidate, quote] of fetched) {
