@@ -5,13 +5,23 @@ import { useRouter } from "next/navigation";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Field, Input, MoneyInput } from "@/components/ui/input";
+import { Field, Input, MoneyInput, Select } from "@/components/ui/input";
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { useToast } from "@/components/ui/toast";
 import type { Bill } from "@/lib/types";
 import { formatMoney } from "@/lib/utils/money";
 
-export function BillActions({ bill, currency }: { bill: Bill; currency: string }) {
+type EditableAccount = { id: string; name: string; isArchived: boolean };
+
+export function BillActions({
+  bill,
+  currency,
+  accounts,
+}: {
+  bill: Bill;
+  currency: string;
+  accounts: EditableAccount[];
+}) {
   const router = useRouter();
   const { success } = useToast();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -25,11 +35,15 @@ export function BillActions({ bill, currency }: { bill: Bill; currency: string }
   const [investmentSymbol, setInvestmentSymbol] = React.useState(
     bill.investmentSymbol ?? "",
   );
+  const [date, setDate] = React.useState(bill.startDate.slice(0, 10));
+  const [accountId, setAccountId] = React.useState(bill.accountId ?? "");
 
   function openEdit() {
     setName(bill.name);
     setAmountCents(bill.amountCents);
     setInvestmentSymbol(bill.investmentSymbol ?? "");
+    setDate(bill.startDate.slice(0, 10));
+    setAccountId(bill.accountId ?? "");
     setError(null);
     // A save that succeeded leaves the dialog closed, so the pending flag has
     // to be cleared here as well: otherwise the next open shows a spinner that
@@ -56,6 +70,8 @@ export function BillActions({ bill, currency }: { bill: Bill; currency: string }
           amountCents: bill.kind === "emi" ? undefined : amountCents,
           investmentSymbol:
             bill.kind === "sip" ? investmentSymbol.trim().toUpperCase() || null : undefined,
+          date: date !== bill.startDate.slice(0, 10) ? date : undefined,
+          accountId: accountId !== (bill.accountId ?? "") ? accountId || null : undefined,
         },
       });
       setEditOpen(false);
@@ -138,11 +154,11 @@ export function BillActions({ bill, currency }: { bill: Bill; currency: string }
         onClose={() => {
           if (!pending) setEditOpen(false);
         }}
-        title="Edit bill"
+        title={bill.kind === "emi" ? "Edit EMI" : "Edit bill"}
         description={
           bill.kind === "emi"
-            ? "EMI amount is calculated from loan terms."
-            : "Update details for this recurring item."
+            ? "Update the first instalment date or payment account. EMI amount is calculated from loan terms."
+            : "Update details, due date or payment account for this recurring item."
         }
         size="sm"
         footer={
@@ -158,8 +174,43 @@ export function BillActions({ bill, currency }: { bill: Bill; currency: string }
       >
         <form id="bill-edit-form" onSubmit={saveEdit} className="space-y-3">
           {error ? <p className="text-xs text-negative">{error}</p> : null}
-          <Field label="Name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} required />
+          <Field label="Name" htmlFor="bill-edit-name">
+            <Input
+              id="bill-edit-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </Field>
+          <Field
+            label={bill.kind === "emi" ? "First instalment date" : "Due date"}
+            htmlFor="bill-edit-date"
+          >
+            <Input
+              id="bill-edit-date"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Paid from" htmlFor="bill-edit-account">
+            <Select
+              id="bill-edit-account"
+              value={accountId}
+              onChange={(event) => setAccountId(event.target.value)}
+            >
+              <option value="">Not specified</option>
+              {accounts.map((account) => (
+                <option
+                  key={account.id}
+                  value={account.id}
+                  disabled={account.isArchived && account.id !== bill.accountId}
+                >
+                  {account.name}{account.isArchived ? " (archived)" : ""}
+                </option>
+              ))}
+            </Select>
           </Field>
           {bill.kind === "sip" ? (
             <Field label="Investment symbol / plan">

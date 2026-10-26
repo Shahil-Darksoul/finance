@@ -9,6 +9,7 @@ import {
   type BillInput,
 } from "@/lib/repo/bills";
 import { buildAmortization } from "@/lib/services/finance/emi";
+import { getAccount } from "@/lib/repo/accounts";
 
 type BillPatch = Partial<BillInput> & {
   paymentsMade?: number;
@@ -18,7 +19,24 @@ type BillPatch = Partial<BillInput> & {
 const schema = z.object({
   title: z.string().trim().min(1, "Give this a name.").max(120).optional(),
   amountCents: z.number().int().positive("Enter the amount.").optional(),
-  date: z.string().min(1, "Pick a date.").optional(),
+  date: z
+    .string()
+    .refine((value) => {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+      if (!match) return false;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const parsed = new Date(0);
+      parsed.setUTCFullYear(year, month - 1, day);
+      return (
+        parsed.getUTCFullYear() === year &&
+        parsed.getUTCMonth() === month - 1 &&
+        parsed.getUTCDate() === day
+      );
+    }, "Enter a valid date.")
+    .optional(),
+  accountId: z.string().nullable().optional(),
   investmentSymbol: z.string().trim().max(60).nullable().optional(),
 });
 
@@ -43,6 +61,18 @@ export const PATCH = route(async (request, user, context) => {
   const bill = await getBill(user.id, id);
   if (!bill) throw ApiError.notFound("That payment no longer exists.");
 
+  if (body.accountId !== undefined && body.accountId !== null) {
+    const account = await getAccount(user.id, body.accountId);
+    if (!account || (account.isArchived && account.id !== bill.accountId)) {
+      throw new ApiError(
+        "Choose an active account that belongs to you.",
+        400,
+        "bad_request",
+        { accountId: "Choose an active account that belongs to you." },
+      );
+    }
+  }
+
   // EMI instalments are derived from the loan terms, never entered by hand.
   if (bill.kind === "emi" && body.amountCents !== undefined) {
     throw new ApiError(
@@ -53,6 +83,7 @@ export const PATCH = route(async (request, user, context) => {
   }
 
   const patch: BillPatch = {};
+  if (body.accountId !== undefined) patch.accountId = body.accountId;
   if (body.title !== undefined) patch.name = body.title;
   if (bill.kind !== "emi" && body.amountCents !== undefined) {
     patch.amountCents = body.amountCents;

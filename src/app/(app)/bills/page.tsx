@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth/guard";
 import { listBills } from "@/lib/repo/bills";
+import { listAccounts } from "@/lib/repo/accounts";
 import { Card, CardBody, CardHeader, EmptyState, Badge } from "@/components/ui/card";
 import { buttonClass } from "@/components/ui/button";
 import { Receipt, Plus, TrendingUp, LineChart } from "lucide-react";
@@ -17,7 +18,15 @@ const KIND_LABEL: Record<string, string> = {
 
 export default async function BillsPage() {
   const user = await requireUser();
-  const bills = await listBills(user.id);
+  const [bills, accounts] = await Promise.all([
+    listBills(user.id),
+    listAccounts(user.id, { includeArchived: true }),
+  ]);
+  const editableAccounts = accounts.map(({ id, name, isArchived }) => ({
+    id,
+    name,
+    isArchived,
+  }));
 
   return (
     <div className="space-y-4">
@@ -85,6 +94,7 @@ export default async function BillsPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Due {b.dueDay} of month • {b.frequency}
+                      {b.accountName ? ` • Paid from ${b.accountName}` : ""}
                       {b.kind === "sip" ? " • Tracked separately from Investments" : ""}
                     </p>
                   </div>
@@ -92,7 +102,7 @@ export default async function BillsPage() {
                     <p className="shrink-0 font-medium tabular-nums">
                       {formatMoney(b.amountCents, { currency: user.currency })}
                     </p>
-                    <BillActions bill={b} currency={user.currency} />
+                    <BillActions bill={b} currency={user.currency} accounts={editableAccounts} />
                   </div>
                 </div>
               ))}
