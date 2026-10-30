@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Field, Input, MoneyInput, Select } from "@/components/ui/input";
@@ -37,20 +37,31 @@ export function BillActions({
   );
   const [date, setDate] = React.useState(bill.startDate.slice(0, 10));
   const [accountId, setAccountId] = React.useState(bill.accountId ?? "");
+  const [focusDate, setFocusDate] = React.useState(false);
+  const dateInputRef = React.useRef<HTMLInputElement>(null);
 
-  function openEdit() {
+  function openEdit(focus: "name" | "date" = "name") {
     setName(bill.name);
     setAmountCents(bill.amountCents);
     setInvestmentSymbol(bill.investmentSymbol ?? "");
     setDate(bill.startDate.slice(0, 10));
     setAccountId(bill.accountId ?? "");
     setError(null);
+    setFocusDate(focus === "date");
     // A save that succeeded leaves the dialog closed, so the pending flag has
     // to be cleared here as well: otherwise the next open shows a spinner that
     // never stops and the dialog cannot be dismissed.
     setPending(false);
     setEditOpen(true);
   }
+
+  // Jump straight to the date field when the calendar shortcut is used. The
+  // modal focuses its first control after opening, so wait a frame longer.
+  React.useEffect(() => {
+    if (!editOpen || !focusDate) return;
+    const timer = window.setTimeout(() => dateInputRef.current?.focus(), 80);
+    return () => window.clearTimeout(timer);
+  }, [editOpen, focusDate]);
 
   function openDelete() {
     setError(null);
@@ -111,7 +122,16 @@ export function BillActions({
 
   return (
     <>
-      <div className="relative">
+      <div className="relative flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Change date for ${bill.name}`}
+          title="Change date"
+          onClick={() => openEdit("date")}
+        >
+          <CalendarDays className="h-4 w-4" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -183,10 +203,22 @@ export function BillActions({
             />
           </Field>
           <Field
-            label={bill.kind === "emi" ? "First instalment date" : "Due date"}
+            label={
+              bill.kind === "emi"
+                ? "First instalment date"
+                : bill.kind === "sip"
+                  ? "Start date"
+                  : "Due date"
+            }
             htmlFor="bill-edit-date"
+            hint={
+              bill.kind === "emi"
+                ? "The instalment schedule is rebuilt from this date."
+                : "Moves this item and its future repetitions to the new date."
+            }
           >
             <Input
+              ref={dateInputRef}
               id="bill-edit-date"
               type="date"
               value={date}

@@ -6,6 +6,7 @@ import { buttonClass } from "@/components/ui/button";
 import { Receipt, Plus, TrendingUp, LineChart } from "lucide-react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils/money";
+import { formatDate } from "@/lib/utils/date";
 import { BillActions } from "@/components/app/bill-actions";
 
 export const dynamic = "force-dynamic";
@@ -93,7 +94,9 @@ export default async function BillsPage() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Due {b.dueDay} of month • {b.frequency}
+                      {b.endDate === b.startDate
+                        ? `Due ${formatDate(b.startDate)} • One time`
+                        : `${b.kind === "emi" ? "First instalment" : "Starts"} ${formatDate(b.startDate)} • Due ${b.dueDay} of month • ${b.frequency}`}
                       {b.accountName ? ` • Paid from ${b.accountName}` : ""}
                       {b.kind === "sip" ? " • Tracked separately from Investments" : ""}
                     </p>

@@ -134,6 +134,7 @@ export function MoneyInput({
   className,
   id,
   placeholder = "0.00",
+  style,
   ...props
 }: {
   valueCents: number;
@@ -152,6 +153,10 @@ export function MoneyInput({
     setText(valueCents === 0 ? "" : (valueCents / 100).toFixed(2));
   }, [valueCents]);
 
+  // Currency codes such as "CAD" are wider than a single "$", so reserve space
+  // for the whole prefix instead of using a fixed padding.
+  const prefixPadding = `calc(0.75rem + ${Math.max(currency.length, 1)}ch + 0.75rem)`;
+
   return (
     <div className="relative">
       <span
@@ -164,7 +169,8 @@ export function MoneyInput({
         id={id}
         inputMode="decimal"
         placeholder={placeholder}
-        className={cn("pl-7 tabular-nums", className)}
+        className={cn("tabular-nums", className)}
+        style={{ paddingLeft: prefixPadding, ...style }}
         value={text}
         onChange={(event) => {
           const raw = event.target.value;
