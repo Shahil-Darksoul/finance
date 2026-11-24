@@ -2,7 +2,7 @@ import { z } from "zod";
 import { route, ok, parseBody } from "@/lib/api";
 import { getUpcomingObligations } from "@/lib/services/finance/obligations";
 import { getNextPaydays } from "@/lib/services/finance/payday";
-import { addDays, fromISODate } from "@/lib/utils/date";
+import { addDays, endOfMonth, fromISODate } from "@/lib/utils/date";
 
 const schema = z.object({
   from: z.string().min(1),
@@ -17,7 +17,7 @@ export const POST = route(async (request, user) => {
 
   const [billObs, sipObs] = await Promise.all([
     getUpcomingObligations(user.id, { from, until: billUntil }),
-    getUpcomingObligations(user.id, { from, until: addDays(from, 365) }),
+    getUpcomingObligations(user.id, { from, until: endOfMonth(from) }),
   ]);
 
   const bills = billObs.filter(

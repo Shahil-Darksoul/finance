@@ -159,7 +159,7 @@ export function QuickAddTransaction({
           <Field
             label="Upcoming bill/loan/investment"
             htmlFor="tx-obligation"
-            hint={loadingObl ? "Loading..." : "Bills/EMIs due before next payday; all SIPs included"}
+            hint={loadingObl ? "Loading..." : "Bills/EMIs due before next payday; SIPs for this month"}
           >
             <Select id="tx-obligation" value={obligationKey} onChange={(e) => selectObligation(e.target.value)}>
               <option value="">Select an item</option>
