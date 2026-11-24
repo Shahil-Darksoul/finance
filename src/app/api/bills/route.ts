@@ -31,18 +31,14 @@ const schema = z
   })
   .superRefine((value, ctx) => {
     if (value.kind === "bill" || value.kind === "sip") {
-      if (!value.amountCents || value.amountCents <= 0) {
+      if (value.amountKind === "fixed" && (!value.amountCents || value.amountCents <= 0)) {
         ctx.addIssue({
           code: "custom",
           path: ["amountCents"],
           message:
-            value.amountKind === "variable"
-              ? value.kind === "sip"
-                ? "Enter an estimated amount to invest each time."
-                : "Enter an estimated amount you pay each time."
-              : value.kind === "sip"
-                ? "Enter the amount you invest each time."
-                : "Enter the amount you pay each time.",
+            value.kind === "sip"
+              ? "Enter the amount you invest each time."
+              : "Enter the amount you pay each time.",
         });
       }
     }

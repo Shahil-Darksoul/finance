@@ -237,29 +237,21 @@ export function NewBillForm({
                   />
                 </Field>
               ) : null}
-              <Field
-                label={
-                  amountKind === "variable"
-                    ? kind === "sip"
-                      ? "Estimated amount"
-                      : "Estimated amount"
-                    : kind === "sip"
-                      ? "Amount to invest"
-                      : "Amount"
-                }
-                htmlFor="amount"
-                error={fields.amountCents}
-                hint={
-                  amountKind === "variable"
-                    ? "Used as an estimate in projections and calendar."
-                    : kind === "sip"
-                      ? "How much you plan to invest each time."
-                      : "What you pay each time."
-                }
-                required
-              >
-                <MoneyInput id="amount" valueCents={amountCents} onValueChange={setAmountCents} />
-              </Field>
+              {amountKind === "fixed" ? (
+                <Field
+                  label={kind === "sip" ? "Amount to invest" : "Amount"}
+                  htmlFor="amount"
+                  error={fields.amountCents}
+                  hint={kind === "sip" ? "How much you plan to invest each time." : "What you pay each time."}
+                  required
+                >
+                  <MoneyInput id="amount" valueCents={amountCents} onValueChange={setAmountCents} />
+                </Field>
+              ) : (
+                <p className="self-end text-xs text-muted-foreground sm:pb-2">
+                  Variable amount: enter the actual amount when it&apos;s paid.
+                </p>
+              )}
               <Field
                 label="Repeats"
                 htmlFor="frequency"

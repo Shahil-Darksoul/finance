@@ -268,13 +268,19 @@ export function BillActions({
                   <option value="variable">Variable amount</option>
                 </Select>
               </Field>
-              <Field label={amountKind === "variable" ? "Estimated amount" : "Amount"}>
-                <MoneyInput
-                  currency={currency}
-                  valueCents={amountCents}
-                  onValueChange={setAmountCents}
-                />
-              </Field>
+              {amountKind === "fixed" ? (
+                <Field label="Amount">
+                  <MoneyInput
+                    currency={currency}
+                    valueCents={amountCents}
+                    onValueChange={setAmountCents}
+                  />
+                </Field>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Variable amount: enter the actual amount when it&apos;s paid.
+                </p>
+              )}
             </>
           ) : (
             <p className="text-xs text-muted-foreground">

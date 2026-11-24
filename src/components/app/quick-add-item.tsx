@@ -303,18 +303,19 @@ export function QuickAddItem({
                 <option value="variable">Variable amount</option>
               </Select>
             </Field>
-            <Field
-              label={billAmountKind === "variable" ? "Estimated amount" : "Amount"}
-              htmlFor="quick-bill-amount"
-              error={fields.amountCents}
-              required
-            >
-              <MoneyInput
-                id="quick-bill-amount"
-                valueCents={billAmount}
-                onValueChange={setBillAmount}
-              />
-            </Field>
+            {billAmountKind === "fixed" ? (
+              <Field label="Amount" htmlFor="quick-bill-amount" error={fields.amountCents} required>
+                <MoneyInput
+                  id="quick-bill-amount"
+                  valueCents={billAmount}
+                  onValueChange={setBillAmount}
+                />
+              </Field>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Variable amount: enter the actual amount when it&apos;s paid.
+              </p>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Due date" htmlFor="quick-bill-date" required>
                 <Input

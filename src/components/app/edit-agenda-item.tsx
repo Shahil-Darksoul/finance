@@ -86,7 +86,8 @@ export function EditAgendaItem({
     const trimmed = title.trim();
     const nextFields: Record<string, string> = {};
     if (!trimmed) nextFields.title = "Give this a name.";
-    if (!isEmi && amountCents <= 0) nextFields.amountCents = "Enter an amount.";
+    if (!isEmi && (isPayday || amountKind === "fixed") && amountCents <= 0)
+      nextFields.amountCents = "Enter an amount.";
     if (!occurrenceDate) nextFields.date = "Pick a date.";
     if (Object.keys(nextFields).length > 0) {
       setFields(nextFields);
@@ -117,7 +118,8 @@ export function EditAgendaItem({
         const json: Record<string, string | number> = {};
         if (trimmed !== event.title) json.title = trimmed;
         if (!isEmi) json.amountKind = amountKind;
-        if (!isEmi && amountCents !== initialAmount) json.amountCents = amountCents;
+        if (!isEmi && amountKind === "fixed" && amountCents !== initialAmount)
+          json.amountCents = amountCents;
         if (occurrenceDate !== event.date) json.date = occurrenceDate;
         await apiFetch(`/api/bills/${id}`, { method: "PATCH", json });
       }
@@ -194,25 +196,29 @@ export function EditAgendaItem({
                   </Select>
                 </Field>
               ) : null}
-              <Field
-                label={amountKind === "variable" && !isPayday ? "Estimated amount" : "Amount"}
-                htmlFor="agenda-edit-amount"
-                error={fields.amountCents}
-                hint={
-                  event.source === "payday"
-                    ? "How much did this check pay? Every payday differs (e.g. by hours worked)."
-                    : amountKind === "variable"
-                      ? "Estimate used for projections; actual may differ."
+              {isPayday || amountKind === "fixed" ? (
+                <Field
+                  label="Amount"
+                  htmlFor="agenda-edit-amount"
+                  error={fields.amountCents}
+                  hint={
+                    event.source === "payday"
+                      ? "How much did this check pay? Every payday differs (e.g. by hours worked)."
                       : "Applies to every repetition of this bill."
-                }
-                required
-              >
-                <MoneyInput
-                  id="agenda-edit-amount"
-                  valueCents={amountCents}
-                  onValueChange={setAmountCents}
-                />
-              </Field>
+                  }
+                  required
+                >
+                  <MoneyInput
+                    id="agenda-edit-amount"
+                    valueCents={amountCents}
+                    onValueChange={setAmountCents}
+                  />
+                </Field>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Variable amount: enter the actual amount when it&apos;s paid.
+                </p>
+              )}
             </>
           )}
 
