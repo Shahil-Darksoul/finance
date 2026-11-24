@@ -35,6 +35,7 @@ import { getFinancialHealth, buildInsights } from "@/lib/services/finance/insigh
 import { getAnalytics } from "@/lib/services/finance/analytics";
 import { getPortfolioSummary } from "@/lib/services/finance/portfolio";
 import { getGoalProgress, summariseGoals } from "@/lib/services/finance/goals";
+import { getUpcomingObligations } from "@/lib/services/finance/obligations";
 import { getNextPaySummary } from "@/lib/services/finance/next-pay";
 import { listTransactions } from "@/lib/repo/transactions";
 import { listNotifications } from "@/lib/repo/notifications";
@@ -43,7 +44,8 @@ import { GoalCelebration } from "@/components/app/goal-celebration";
 import { formatMoney, formatPercent } from "@/lib/utils/money";
 import { DEFAULT_CURRENCY } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
-import { startOfToday } from "@/lib/utils/date";
+import { addDays } from "date-fns";
+import { fromISODate, startOfToday } from "@/lib/utils/date";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +76,14 @@ export default async function DashboardPage() {
       getNextPaySummary(user.id),
     ]);
 
+  const windowEnd = paycheck.nextPaydayDate
+    ? fromISODate(paycheck.nextPaydayDate)
+    : addDays(today, 30);
+  const obligations = await getUpcomingObligations(user.id, {
+    from: today,
+    until: windowEnd,
+  });
+
   const money = formatMoney;
   const [health, insights] = await Promise.all([
     getFinancialHealth(user.id, DEFAULT_CURRENCY, money),
@@ -91,7 +101,7 @@ export default async function DashboardPage() {
       name: entry.goal.name,
       targetCents: entry.goal.targetCents,
     }));
-  const obligationsUntilPayday = paycheck.obligations.filter(
+  const obligationsUntilPayday = obligations.filter(
     (item) => !paycheck.nextPaydayDate || item.dueDate < paycheck.nextPaydayDate,
   );
   const obligationsTotalCents = obligationsUntilPayday.reduce(
