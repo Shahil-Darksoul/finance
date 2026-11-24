@@ -520,4 +520,25 @@ export const migrations: Migration[] = [
       `ALTER TABLE bills ADD COLUMN investment_symbol TEXT`,
     ],
   },
+  {
+    id: "0014_work_log",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS work_settings (
+        user_id TEXT PRIMARY KEY ${REF} users(id) ON DELETE CASCADE,
+        hourly_rate_cents ${MONEY},
+        tax_percent REAL NOT NULL DEFAULT 0,
+        updated_at ${TS}
+      )`,
+      `CREATE TABLE IF NOT EXISTS work_entries (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL ${REF} users(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        hours REAL NOT NULL DEFAULT 0,
+        created_at ${TS},
+        updated_at ${TS},
+        UNIQUE (user_id, date)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_work_entries_user ON work_entries(user_id, date)`,
+    ],
+  },
 ];

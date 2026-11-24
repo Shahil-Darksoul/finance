@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   Wallet,
   CalendarDays,
+  Clock,
   Target,
   Receipt,
   TrendingUp,
@@ -55,6 +56,7 @@ const NAV_GROUPS: {
       { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
       { href: "/accounts", label: "Accounts", icon: Wallet },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/next-pay", label: "Next pay", icon: Clock },
     ],
   },
   {

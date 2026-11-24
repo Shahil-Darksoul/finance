@@ -147,6 +147,21 @@ export function CalendarView({
               const isSelected = day.iso === selected;
               const outgoing = dayEvents.filter((e) => e.amountCents < 0).length;
               const incoming = dayEvents.filter((e) => e.amountCents > 0).length;
+              const scheduledDue = dayEvents
+                .filter(
+                  (e) =>
+                    (SOURCE_STYLES[e.source] ?? SOURCE_STYLES.bill).scheduled &&
+                    e.amountCents < 0,
+                )
+                .reduce((sum, e) => sum + Math.abs(e.amountCents), 0);
+              const recordedPaid = dayEvents
+                .filter(
+                  (e) =>
+                    !(SOURCE_STYLES[e.source] ?? SOURCE_STYLES.bill).scheduled &&
+                    e.amountCents < 0,
+                )
+                .reduce((sum, e) => sum + Math.abs(e.amountCents), 0);
+              const remaining = scheduledDue - recordedPaid;
 
               return (
                 <button
@@ -176,9 +191,30 @@ export function CalendarView({
                       {day.day}
                     </span>
                     {dayEvents.length ? (
-                      <span className="hidden shrink-0 gap-1 text-[10px] tabular-nums sm:flex">
-                        {outgoing ? <span className="text-negative">−{outgoing}</span> : null}
-                        {incoming ? <span className="text-positive">+{incoming}</span> : null}
+                      <span className="flex shrink-0 items-center gap-1 text-[10px] tabular-nums">
+                        {scheduledDue > 0 ? (
+                          <span
+                            title={`${formatMoney(scheduledDue, { currency })} due · ${formatMoney(recordedPaid, { currency })} paid`}
+                            className={cn(
+                              remaining > 0
+                                ? "text-negative"
+                                : remaining < 0
+                                  ? "text-positive"
+                                  : "text-foreground",
+                            )}
+                          >
+                            {remaining > 0
+                              ? `−${formatMoney(remaining, { currency, compact: true })}`
+                              : remaining < 0
+                                ? `+${formatMoney(-remaining, { currency, compact: true })}`
+                                : formatMoney(0, { currency, compact: true })}
+                          </span>
+                        ) : outgoing ? (
+                          <span className="hidden text-negative sm:inline">−{outgoing}</span>
+                        ) : null}
+                        {incoming ? (
+                          <span className="hidden text-positive sm:inline">+{incoming}</span>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>

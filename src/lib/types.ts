@@ -412,6 +412,20 @@ export type Payday = {
   createdAt: string;
 };
 
+export type WorkSettings = {
+  hourlyRateCents: number;
+  taxPercent: number;
+};
+
+export type WorkEntry = {
+  id: string;
+  userId: string;
+  date: string;
+  hours: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SavingsGoal = {
   id: string;
   userId: string;
