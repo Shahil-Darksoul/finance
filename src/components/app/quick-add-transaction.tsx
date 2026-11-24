@@ -48,10 +48,10 @@ export function QuickAddTransaction({
     });
     void (async () => {
       try {
-        const res = await apiFetch<{ obligations: UpcomingObligation[] }>("/api/obligations/upcoming", {
-          method: "POST",
-          json: { from: date, days: 60 },
-        });
+        const res = await apiFetch<{ obligations: UpcomingObligation[]; nextPaydayDate: string | null }>(
+          "/api/obligations/payable",
+          { method: "POST", json: { from: date } },
+        );
         if (!active) return;
         const due = res.obligations.filter((o) => ["bill", "emi", "sip"].includes(o.source) && o.amountCents > 0);
         setObligations(due);
@@ -156,14 +156,18 @@ export function QuickAddTransaction({
         </div>
 
         {mode === "obligation" ? (
-          <Field label="Upcoming bill/loan/investment" htmlFor="tx-obligation" hint={loadingObl ? "Loading..." : "Next upcoming items"}>
+          <Field
+            label="Upcoming bill/loan/investment"
+            htmlFor="tx-obligation"
+            hint={loadingObl ? "Loading..." : "Bills/EMIs due before next payday; all SIPs included"}
+          >
             <Select id="tx-obligation" value={obligationKey} onChange={(e) => selectObligation(e.target.value)}>
               <option value="">Select an item</option>
               {obligations.map((o) => {
                 const key = `${o.source}:${o.id}:${o.dueDate}`;
                 return (
                   <option key={key} value={key}>
-                    {o.name} · {o.dueDate} · {formatMoney(o.amountCents, { currency })}
+                    {o.source === "sip" ? "SIP: " : ""}{o.name} · {o.dueDate} · {formatMoney(o.amountCents, { currency })}
                   </option>
                 );
               })}
