@@ -349,12 +349,15 @@ export type RecurringTransaction = {
 
 export const BILL_KINDS = ["bill", "emi", "sip"] as const;
 export type BillKind = (typeof BILL_KINDS)[number];
+export const BILL_AMOUNT_KINDS = ["fixed", "variable"] as const;
+export type BillAmountKind = (typeof BILL_AMOUNT_KINDS)[number];
 
 export type Bill = {
   id: string;
   userId: string;
   name: string;
   kind: BillKind;
+  amountKind: BillAmountKind;
   amountCents: number;
   frequency: BillFrequency;
   dueDay: number;
@@ -737,6 +740,8 @@ export type CalendarEvent = {
   color: string | null;
   /** True for a payday whose amount was set for this date. */
   amountEdited?: boolean;
+  /** Bills/SIPs can be fixed or variable; variable amounts are estimates. */
+  amountKind?: BillAmountKind;
   /** Present on transaction events, for the agenda delete action. */
   type?: TransactionType;
   merchant?: string | null;

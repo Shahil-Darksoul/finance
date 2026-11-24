@@ -277,6 +277,7 @@ export type BillRow = {
   user_id: string;
   name: string;
   kind: string;
+  amount_kind?: string | null;
   investment_symbol: string | null;
   amount_cents: number;
   frequency: string;
@@ -307,6 +308,7 @@ export function toBill(row: BillRow): Bill {
     name: row.name,
     kind:
       row.kind === "emi" ? "emi" : row.kind === "sip" ? "sip" : "bill",
+    amountKind: row.amount_kind === "variable" ? "variable" : "fixed",
     amountCents: int(row.amount_cents),
     frequency: row.frequency as Bill["frequency"],
     dueDay: int(row.due_day),

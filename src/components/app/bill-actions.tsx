@@ -31,6 +31,7 @@ export function BillActions({
   const [error, setError] = React.useState<string | null>(null);
 
   const [name, setName] = React.useState(bill.name);
+  const [amountKind, setAmountKind] = React.useState(bill.amountKind);
   const [amountCents, setAmountCents] = React.useState(bill.amountCents);
   const [investmentSymbol, setInvestmentSymbol] = React.useState(
     bill.investmentSymbol ?? "",
@@ -42,6 +43,7 @@ export function BillActions({
 
   function openEdit(focus: "name" | "date" = "name") {
     setName(bill.name);
+    setAmountKind(bill.amountKind);
     setAmountCents(bill.amountCents);
     setInvestmentSymbol(bill.investmentSymbol ?? "");
     setDate(bill.startDate.slice(0, 10));
@@ -78,6 +80,7 @@ export function BillActions({
         method: "PATCH",
         json: {
           title: name.trim(),
+          amountKind: bill.kind === "emi" ? undefined : amountKind,
           amountCents: bill.kind === "emi" ? undefined : amountCents,
           investmentSymbol:
             bill.kind === "sip" ? investmentSymbol.trim().toUpperCase() || null : undefined,
@@ -254,13 +257,25 @@ export function BillActions({
             </Field>
           ) : null}
           {bill.kind !== "emi" ? (
-            <Field label="Amount">
-              <MoneyInput
-                currency={currency}
-                valueCents={amountCents}
-                onValueChange={setAmountCents}
-              />
-            </Field>
+            <>
+              <Field label="Amount type" htmlFor="bill-edit-amount-kind">
+                <Select
+                  id="bill-edit-amount-kind"
+                  value={amountKind}
+                  onChange={(event) => setAmountKind(event.target.value as Bill["amountKind"])}
+                >
+                  <option value="fixed">Fixed amount</option>
+                  <option value="variable">Variable amount</option>
+                </Select>
+              </Field>
+              <Field label={amountKind === "variable" ? "Estimated amount" : "Amount"}>
+                <MoneyInput
+                  currency={currency}
+                  valueCents={amountCents}
+                  onValueChange={setAmountCents}
+                />
+              </Field>
+            </>
           ) : (
             <p className="text-xs text-muted-foreground">
               Amount: {formatMoney(bill.amountCents, { currency })}

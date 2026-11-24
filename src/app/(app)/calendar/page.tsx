@@ -91,6 +91,7 @@ export default async function CalendarPage({
           source: event.source,
           recurring: event.recurring,
           amountEdited: event.amountEdited,
+          amountKind: event.amountKind,
           accountId: event.accountId,
           type: event.type,
           merchant: event.merchant,

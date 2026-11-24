@@ -92,6 +92,7 @@ export default async function BillsPage() {
                       <Badge tone={b.kind === "sip" ? "accent" : b.kind === "emi" ? "negative" : "warning"}>
                         {KIND_LABEL[b.kind] ?? b.kind}
                       </Badge>
+                      {b.amountKind === "variable" ? <Badge>Variable</Badge> : null}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {b.endDate === b.startDate
@@ -103,6 +104,7 @@ export default async function BillsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="shrink-0 font-medium tabular-nums">
+                      {b.amountKind === "variable" ? "~" : ""}
                       {formatMoney(b.amountCents, { currency: user.currency })}
                     </p>
                     <BillActions bill={b} currency={user.currency} accounts={editableAccounts} />

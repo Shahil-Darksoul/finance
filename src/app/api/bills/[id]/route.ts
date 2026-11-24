@@ -18,6 +18,7 @@ type BillPatch = Partial<BillInput> & {
 
 const schema = z.object({
   title: z.string().trim().min(1, "Give this a name.").max(120).optional(),
+  amountKind: z.enum(["fixed", "variable"]).optional(),
   amountCents: z.number().int().positive("Enter the amount.").optional(),
   date: z
     .string()
@@ -85,6 +86,9 @@ export const PATCH = route(async (request, user, context) => {
   const patch: BillPatch = {};
   if (body.accountId !== undefined) patch.accountId = body.accountId;
   if (body.title !== undefined) patch.name = body.title;
+  if (bill.kind !== "emi" && body.amountKind !== undefined) {
+    patch.amountKind = body.amountKind;
+  }
   if (bill.kind !== "emi" && body.amountCents !== undefined) {
     patch.amountCents = body.amountCents;
   }

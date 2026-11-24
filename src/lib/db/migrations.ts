@@ -541,4 +541,12 @@ export const migrations: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_work_entries_user ON work_entries(user_id, date)`,
     ],
   },
+  {
+    id: "0015_bill_amount_kind",
+    statements: [
+      // Bills and investment plans can be fixed or vary each time. Variable
+      // items keep amount_cents as an estimate for projections/calendar.
+      `ALTER TABLE bills ADD COLUMN amount_kind TEXT NOT NULL DEFAULT 'fixed'`,
+    ],
+  },
 ];

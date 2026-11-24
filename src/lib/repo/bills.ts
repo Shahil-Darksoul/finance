@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import { newId } from "@/lib/utils/id";
-import type { Bill, BillFrequency, BillKind, Priority } from "@/lib/types";
+import type { Bill, BillAmountKind, BillFrequency, BillKind, Priority } from "@/lib/types";
 import { type BillRow, type EmiPaymentRow, toBill, toEmiPayment } from "./mappers";
 import type { EmiPayment } from "@/lib/types";
 
@@ -46,6 +46,7 @@ export async function getBill(userId: string, id: string): Promise<Bill | null> 
 export type BillInput = {
   name: string;
   kind: BillKind;
+  amountKind?: BillAmountKind;
   /** Free-form target for a `sip` plan. Ignored for bills and loans. */
   investmentSymbol?: string | null;
   amountCents: number;
@@ -73,16 +74,17 @@ export async function createBill(
   const now = new Date().toISOString();
   await db.run(
     `INSERT INTO bills (
-        id, user_id, name, kind, investment_symbol, amount_cents, frequency,
+        id, user_id, name, kind, amount_kind, investment_symbol, amount_cents, frequency,
         due_day, start_date, end_date, account_id, category_id, autopay,
         priority, notes, active, principal_cents, annual_rate, term_months,
         current_principal_cents, payments_made, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     [
       id,
       userId,
       input.name,
       input.kind,
+      input.kind === "emi" ? "fixed" : (input.amountKind ?? "fixed"),
       input.kind === "sip" ? (input.investmentSymbol ?? null) : null,
       Math.abs(Math.trunc(input.amountCents)),
       input.frequency,
@@ -123,6 +125,7 @@ export async function updateBill(
 
   if (input.name !== undefined) push("name", input.name);
   if (input.kind !== undefined) push("kind", input.kind);
+  if (input.amountKind !== undefined) push("amount_kind", input.amountKind);
   if (input.investmentSymbol !== undefined)
     push("investment_symbol", input.investmentSymbol);
   if (input.amountCents !== undefined)

@@ -24,6 +24,7 @@ export type CalendarEventInput = {
   accountId?: string | null;
   /** True for a payday whose amount was set for this date. */
   amountEdited?: boolean;
+  amountKind?: "fixed" | "variable";
 };
 
 type SourceStyle = { label: string; dot: string; scheduled: boolean };
@@ -467,6 +468,7 @@ function AgendaList({
                                 : "text-muted-foreground",
                           )}
                         >
+                          {event.amountKind === "variable" ? "~" : ""}
                           {formatMoney(event.amountCents, { currency })}
                         </span>
                         <EditAgendaItem event={event} accounts={accounts} currency={currency} />

@@ -53,6 +53,7 @@ export function EditAgendaItem({
   const [error, setError] = React.useState<string | null>(null);
   const [fields, setFields] = React.useState<Record<string, string>>({});
   const [title, setTitle] = React.useState("");
+  const [amountKind, setAmountKind] = React.useState<"fixed" | "variable">("fixed");
   const [amountCents, setAmountCents] = React.useState(0);
   const [occurrenceDate, setOccurrenceDate] = React.useState("");
   const [accountId, setAccountId] = React.useState("");
@@ -66,6 +67,7 @@ export function EditAgendaItem({
 
   function openDialog() {
     setTitle(event.title);
+    setAmountKind(event.amountKind ?? "fixed");
     // A check can pay a different amount every time, so the payday field always
     // asks for this date's amount instead of carrying the previous one over.
     setAmountCents(event.source === "payday" ? 0 : initialAmount);
@@ -114,6 +116,7 @@ export function EditAgendaItem({
       } else {
         const json: Record<string, string | number> = {};
         if (trimmed !== event.title) json.title = trimmed;
+        if (!isEmi) json.amountKind = amountKind;
         if (!isEmi && amountCents !== initialAmount) json.amountCents = amountCents;
         if (occurrenceDate !== event.date) json.date = occurrenceDate;
         await apiFetch(`/api/bills/${id}`, { method: "PATCH", json });
@@ -178,23 +181,39 @@ export function EditAgendaItem({
               to renegotiate the amount, edit the loan itself.
             </p>
           ) : (
-            <Field
-              label="Amount"
-              htmlFor="agenda-edit-amount"
-              error={fields.amountCents}
-              hint={
-                event.source === "payday"
-                  ? "How much did this check pay? Every payday differs (e.g. by hours worked)."
-                  : "Applies to every repetition of this bill."
-              }
-              required
-            >
-              <MoneyInput
-                id="agenda-edit-amount"
-                valueCents={amountCents}
-                onValueChange={setAmountCents}
-              />
-            </Field>
+            <>
+              {!isPayday ? (
+                <Field label="Amount type" htmlFor="agenda-edit-amount-kind">
+                  <Select
+                    id="agenda-edit-amount-kind"
+                    value={amountKind}
+                    onChange={(event) => setAmountKind(event.target.value as "fixed" | "variable")}
+                  >
+                    <option value="fixed">Fixed amount</option>
+                    <option value="variable">Variable amount</option>
+                  </Select>
+                </Field>
+              ) : null}
+              <Field
+                label={amountKind === "variable" && !isPayday ? "Estimated amount" : "Amount"}
+                htmlFor="agenda-edit-amount"
+                error={fields.amountCents}
+                hint={
+                  event.source === "payday"
+                    ? "How much did this check pay? Every payday differs (e.g. by hours worked)."
+                    : amountKind === "variable"
+                      ? "Estimate used for projections; actual may differ."
+                      : "Applies to every repetition of this bill."
+                }
+                required
+              >
+                <MoneyInput
+                  id="agenda-edit-amount"
+                  valueCents={amountCents}
+                  onValueChange={setAmountCents}
+                />
+              </Field>
+            </>
           )}
 
           {isPayday ? (

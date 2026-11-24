@@ -65,6 +65,7 @@ export function QuickAddItem({
 
   // Bill.
   const [billName, setBillName] = React.useState("");
+  const [billAmountKind, setBillAmountKind] = React.useState<"fixed" | "variable">("fixed");
   const [billAmount, setBillAmount] = React.useState(0);
   const [repeat, setRepeat] = React.useState(true);
 
@@ -127,6 +128,7 @@ export function QuickAddItem({
           json: {
             name: billName.trim(),
             kind: "bill",
+            amountKind: billAmountKind,
             amountCents: billAmount,
             frequency: "monthly",
             repeat,
@@ -291,7 +293,22 @@ export function QuickAddItem({
                 placeholder="Rent"
               />
             </Field>
-            <Field label="Amount" htmlFor="quick-bill-amount" error={fields.amountCents} required>
+            <Field label="Amount type" htmlFor="quick-bill-amount-kind">
+              <Select
+                id="quick-bill-amount-kind"
+                value={billAmountKind}
+                onChange={(event) => setBillAmountKind(event.target.value as "fixed" | "variable")}
+              >
+                <option value="fixed">Fixed amount</option>
+                <option value="variable">Variable amount</option>
+              </Select>
+            </Field>
+            <Field
+              label={billAmountKind === "variable" ? "Estimated amount" : "Amount"}
+              htmlFor="quick-bill-amount"
+              error={fields.amountCents}
+              required
+            >
               <MoneyInput
                 id="quick-bill-amount"
                 valueCents={billAmount}

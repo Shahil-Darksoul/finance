@@ -10,7 +10,12 @@ import { Field, Input, MoneyInput, Select, Switch, Textarea } from "@/components
 import { Badge } from "@/components/ui/card";
 import { apiFetch, ApiClientError } from "@/lib/api-client";
 import { buildAmortization } from "@/lib/services/finance/emi";
-import { BILL_FREQUENCIES, FREQUENCY_META, type BillFrequency } from "@/lib/types";
+import {
+  BILL_FREQUENCIES,
+  FREQUENCY_META,
+  type BillAmountKind,
+  type BillFrequency,
+} from "@/lib/types";
 import { toISODate } from "@/lib/utils/date";
 import { formatMoney } from "@/lib/utils/money";
 
@@ -48,6 +53,7 @@ export function NewBillForm({
   const [fields, setFields] = React.useState<Record<string, string>>({});
 
   const [amountCents, setAmountCents] = React.useState(0);
+  const [amountKind, setAmountKind] = React.useState<BillAmountKind>("fixed");
   const [principalCents, setPrincipalCents] = React.useState(0);
   const [rate, setRate] = React.useState<string>("");
   const [termMonths, setTermMonths] = React.useState<string>("");
@@ -93,6 +99,7 @@ export function NewBillForm({
         json: {
           name,
           kind,
+          amountKind: kind === "emi" ? "fixed" : amountKind,
           investmentSymbol: kind === "sip" ? investmentSymbol.trim().toUpperCase() || null : null,
           amountCents: kind === "bill" || kind === "sip" ? amountCents : undefined,
           principalCents: kind === "emi" ? principalCents : undefined,
@@ -202,6 +209,16 @@ export function NewBillForm({
 
           {kind === "bill" || kind === "sip" ? (
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Amount type" htmlFor="amountKind" hint="Variable amounts are estimates for planning.">
+                <Select
+                  id="amountKind"
+                  value={amountKind}
+                  onChange={(event) => setAmountKind(event.target.value as BillAmountKind)}
+                >
+                  <option value="fixed">Fixed amount</option>
+                  <option value="variable">Variable amount</option>
+                </Select>
+              </Field>
               {kind === "sip" ? (
                 <Field
                   label="Investment target"
@@ -221,10 +238,24 @@ export function NewBillForm({
                 </Field>
               ) : null}
               <Field
-                label={kind === "sip" ? "Amount to invest" : "Amount"}
+                label={
+                  amountKind === "variable"
+                    ? kind === "sip"
+                      ? "Estimated amount"
+                      : "Estimated amount"
+                    : kind === "sip"
+                      ? "Amount to invest"
+                      : "Amount"
+                }
                 htmlFor="amount"
                 error={fields.amountCents}
-                hint={kind === "sip" ? "How much you plan to invest each time." : "What you pay each time."}
+                hint={
+                  amountKind === "variable"
+                    ? "Used as an estimate in projections and calendar."
+                    : kind === "sip"
+                      ? "How much you plan to invest each time."
+                      : "What you pay each time."
+                }
                 required
               >
                 <MoneyInput id="amount" valueCents={amountCents} onValueChange={setAmountCents} />

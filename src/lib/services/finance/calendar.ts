@@ -114,6 +114,7 @@ export async function getCalendarEvents(
         amountCents: -bill.amountCents,
         recurring: bill.startDate !== bill.endDate,
         accountId: bill.accountId,
+        amountKind: bill.amountKind,
         color: SOURCE_TONE[source],
       });
     }

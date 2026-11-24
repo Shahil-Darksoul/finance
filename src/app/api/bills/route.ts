@@ -2,12 +2,13 @@ import { z } from "zod";
 import { route, ok, parseBody } from "@/lib/api";
 import { createBill, replaceEmiSchedule } from "@/lib/repo/bills";
 import { buildAmortization } from "@/lib/services/finance/emi";
-import { BILL_FREQUENCIES } from "@/lib/types";
+import { BILL_AMOUNT_KINDS, BILL_FREQUENCIES } from "@/lib/types";
 
 const schema = z
   .object({
     name: z.string().trim().min(1, "Give this a name."),
     kind: z.enum(["bill", "emi", "sip"]).default("bill"),
+    amountKind: z.enum(BILL_AMOUNT_KINDS).default("fixed"),
     amountCents: z.number().int().min(0).optional(),
     /**
      * What an investment plan buys. Free-form so it works for any market, not
@@ -35,9 +36,13 @@ const schema = z
           code: "custom",
           path: ["amountCents"],
           message:
-            value.kind === "sip"
-              ? "Enter the amount you invest each time."
-              : "Enter the amount you pay each time.",
+            value.amountKind === "variable"
+              ? value.kind === "sip"
+                ? "Enter an estimated amount to invest each time."
+                : "Enter an estimated amount you pay each time."
+              : value.kind === "sip"
+                ? "Enter the amount you invest each time."
+                : "Enter the amount you pay each time.",
         });
       }
     }
@@ -106,6 +111,7 @@ export const POST = route(async (request, user) => {
   const bill = await createBill(user.id, {
     name: body.name,
     kind: body.kind,
+    amountKind: body.kind === "emi" ? "fixed" : body.amountKind,
     investmentSymbol:
       body.kind === "sip" ? body.investmentSymbol?.trim().toUpperCase() || null : null,
     amountCents,
