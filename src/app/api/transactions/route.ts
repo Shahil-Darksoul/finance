@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { route, ok, parseBody, ApiError } from "@/lib/api";
 import { createTransaction } from "@/lib/repo/transactions";
+import { getBill, listEmiPayments } from "@/lib/repo/bills";
+import { getOccurrenceOverride, setOccurrenceOverride } from "@/lib/repo/occurrence-overrides";
 import {
   createTransfer,
   TransferError,
@@ -18,6 +20,13 @@ const schema = z.object({
   merchant: z.string().trim().max(80).nullable().optional(),
   notes: z.string().trim().max(280).nullable().optional(),
   status: z.enum(["cleared", "pending"]).optional(),
+  payObligation: z
+    .object({
+      source: z.literal("bill"),
+      id: z.string().min(1),
+      date: z.string().min(1),
+    })
+    .optional(),
 });
 
 /** Records a single money movement against an account. */
@@ -70,6 +79,23 @@ export const POST = route(async (request, user) => {
     notes: body.notes ?? null,
     status: body.status ?? "cleared",
   });
+
+  if (body.payObligation) {
+    const { id, date } = body.payObligation;
+    const bill = await getBill(user.id, id);
+    if (!bill) throw ApiError.notFound("That bill no longer exists.");
+
+    let baseAmount = bill.amountCents;
+    if (bill.kind === "emi") {
+      const payments = await listEmiPayments(user.id, id);
+      const match = payments.find((p) => p.dueDate === date);
+      if (match) baseAmount = match.amountCents;
+    }
+    const existing = await getOccurrenceOverride(user.id, "bill", id, date);
+    const current = existing?.amountCents ?? baseAmount;
+    const remaining = Math.max(0, current - Math.abs(body.amountCents));
+    await setOccurrenceOverride(user.id, "bill", id, date, remaining);
+  }
 
   return ok({ transaction }, 201);
 });

@@ -54,6 +54,12 @@ export default async function CalendarPage({
   const accounts = allAccounts
     .filter((account) => DEPOSIT_ACCOUNT_TYPES.includes(account.type))
     .map((account) => ({ id: account.id, name: account.name }));
+  const txAccounts = allAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    type: account.type,
+    currentBalanceCents: account.currentBalanceCents,
+  }));
 
   return (
     <div className="space-y-4">
@@ -97,6 +103,7 @@ export default async function CalendarPage({
           merchant: event.merchant,
         }))}
         accounts={accounts}
+        txAccounts={txAccounts}
         currency={user.currency}
       />
 

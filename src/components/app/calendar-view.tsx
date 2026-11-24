@@ -10,6 +10,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { DeleteAgendaItem } from "./delete-agenda-item";
 import { EditAgendaItem } from "./edit-agenda-item";
 import { QuickAddItem } from "./quick-add-item";
+import { QuickAddTransaction } from "./quick-add-transaction";
 
 export type CalendarEventInput = {
   id: string;
@@ -50,15 +51,18 @@ export function CalendarView({
   anchorISO,
   events,
   accounts,
+  txAccounts,
   currency,
 }: {
   anchorISO: string;
   events: CalendarEventInput[];
   accounts: { id: string; name: string }[];
+  txAccounts: { id: string; name: string; type: import("@/lib/types").AccountType; currentBalanceCents: number }[];
   currency: string;
 }) {
   const [selected, setSelected] = React.useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = React.useState(false);
+  const [quickTxOpen, setQuickTxOpen] = React.useState(false);
 
   const byDate = React.useMemo(() => {
     const map = new Map<string, CalendarEventInput[]>();
@@ -276,15 +280,26 @@ export function CalendarView({
                 show the whole month
               </button>
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setQuickAddOpen(true)}
-              className="h-7 px-2 text-[11px]"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              Add bill, EMI or payday
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickTxOpen(true)}
+                className="h-7 px-2 text-[11px]"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Add transaction
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickAddOpen(true)}
+                className="h-7 px-2 text-[11px]"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Add bill, EMI or payday
+              </Button>
+            </div>
           </div>
         ) : null}
 
@@ -315,13 +330,23 @@ export function CalendarView({
       </div>
 
       {selected ? (
-        <QuickAddItem
-          key={`${selected}:${quickAddOpen}`}
-          open={quickAddOpen}
-          onClose={() => setQuickAddOpen(false)}
-          date={selected}
-          currency={currency}
-        />
+        <>
+          <QuickAddItem
+            key={`bill-${selected}:${quickAddOpen}`}
+            open={quickAddOpen}
+            onClose={() => setQuickAddOpen(false)}
+            date={selected}
+            currency={currency}
+          />
+          <QuickAddTransaction
+            key={`tx-${selected}:${quickTxOpen}`}
+            open={quickTxOpen}
+            onClose={() => setQuickTxOpen(false)}
+            date={selected}
+            currency={currency}
+            accounts={txAccounts}
+          />
+        </>
       ) : null}
     </div>
   );

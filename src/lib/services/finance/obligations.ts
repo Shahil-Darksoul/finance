@@ -2,6 +2,7 @@ import { addDays } from "date-fns";
 import { listBills } from "@/lib/repo/bills";
 import { listRecurring } from "@/lib/repo/recurring";
 import { listGoals } from "@/lib/repo/goals";
+import { listOccurrenceOverrides } from "@/lib/repo/occurrence-overrides";
 import { listOccurrenceSkips } from "@/lib/repo/occurrence-skips";
 import type { Bill, CalendarEvent, RecurringTransaction, UpcomingObligation } from "@/lib/types";
 import { firstOccurrenceOnOrAfter, occurrencesInRange } from "./recurrence";
@@ -62,7 +63,7 @@ export async function getUpcomingObligations(
   const until = options.until ?? addDays(from, 45);
   const results: UpcomingObligation[] = [];
 
-  const [bills, recurring, goals, skips] = await Promise.all([
+  const [bills, recurring, goals, skips, overrides] = await Promise.all([
     listBills(userId, { includeInactive: false }),
     options.excludeRecurringTemplates
       ? Promise.resolve([])
@@ -71,8 +72,12 @@ export async function getUpcomingObligations(
       ? Promise.resolve([])
       : listGoals(userId),
     listOccurrenceSkips(userId),
+    listOccurrenceOverrides(userId),
   ]);
 
+  const overrideByKey = new Map(
+    overrides.map((o) => [`${o.sourceType}:${o.sourceId}:${o.date}`, o.amountCents]),
+  );
   const skippedDates = new Set(
     skips.map((skip) => `${skip.sourceType}:${skip.sourceId}:${skip.date}`),
   );
@@ -84,6 +89,7 @@ export async function getUpcomingObligations(
     for (const date of occurrencesInRange(billRule(bill), from, until, 24)) {
       const iso = toISODate(date);
       if (isSkipped("bill", bill.id, iso)) continue;
+      const override = overrideByKey.get(`bill:${bill.id}:${iso}`);
       results.push({
         id: bill.id,
         source: billSource(bill) as UpcomingObligation["source"],
@@ -91,7 +97,7 @@ export async function getUpcomingObligations(
           ? `${bill.name} (${bill.investmentSymbol})`
           : bill.name,
         dueDate: iso,
-        amountCents: bill.amountCents,
+        amountCents: override ?? bill.amountCents,
         accountId: bill.accountId,
         autopay: bill.autopay,
       });

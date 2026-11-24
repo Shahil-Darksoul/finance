@@ -4,6 +4,7 @@ import { listRecurring } from "@/lib/repo/recurring";
 import { listGoals } from "@/lib/repo/goals";
 import { listTransactions } from "@/lib/repo/transactions";
 import { listInvestments } from "@/lib/repo/investments";
+import { listOccurrenceOverrides } from "@/lib/repo/occurrence-overrides";
 import { listOccurrenceSkips } from "@/lib/repo/occurrence-skips";
 import { getPaydayOccurrences } from "./payday";
 import { billRule, billSource, recurringRule } from "./obligations";
@@ -36,16 +37,20 @@ export async function getCalendarEvents(
   from: Date,
   to: Date,
 ): Promise<CalendarEvent[]> {
-  const [bills, recurring, goals, paydays, investments, skips] = await Promise.all([
+  const [bills, recurring, goals, paydays, investments, skips, overrides] = await Promise.all([
     listBills(userId),
     listRecurring(userId),
     listGoals(userId),
     getPaydayOccurrences(userId, from, to),
     listInvestments(userId),
     listOccurrenceSkips(userId),
+    listOccurrenceOverrides(userId),
   ]);
 
   const events: CalendarEvent[] = [];
+  const overrideByKey = new Map(
+    overrides.map((o) => [`${o.sourceType}:${o.sourceId}:${o.date}`, o.amountCents]),
+  );
   // Hidden single dates: `<source>:<id>:<date>`.
   const skippedDates = new Set(
     skips.map((skip) => `${skip.sourceType}:${skip.sourceId}:${skip.date}`),
@@ -82,12 +87,14 @@ export async function getCalendarEvents(
 
       if (inRange.length > 0) {
         for (const payment of inRange) {
+          const override = overrideByKey.get(`bill:${bill.id}:${payment.dueDate}`);
           events.push({
             id: `emi-${bill.id}-${payment.dueDate}`,
             source: "emi",
             title: bill.name,
             date: payment.dueDate,
-            amountCents: -payment.amountCents,
+            amountCents: -(override ?? payment.amountCents),
+            amountEdited: override !== undefined,
             recurring: true,
             accountId: bill.accountId,
             color: SOURCE_TONE.emi,
@@ -102,6 +109,7 @@ export async function getCalendarEvents(
     for (const date of occurrencesInRange(billRule(bill), from, to, 24)) {
       const iso = toISODate(date);
       if (isSkipped("bill", bill.id, iso)) continue;
+      const override = overrideByKey.get(`bill:${bill.id}:${iso}`);
       events.push({
         id: `bill-${bill.id}-${iso}`,
         source,
@@ -111,7 +119,8 @@ export async function getCalendarEvents(
           ? `${bill.name} (${bill.investmentSymbol})`
           : bill.name,
         date: iso,
-        amountCents: -bill.amountCents,
+        amountCents: -(override ?? bill.amountCents),
+        amountEdited: override !== undefined,
         recurring: bill.startDate !== bill.endDate,
         accountId: bill.accountId,
         amountKind: bill.amountKind,
